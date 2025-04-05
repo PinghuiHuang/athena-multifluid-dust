@@ -1,0 +1,66 @@
+<csionomment>
+problem   = 1D dust-gas drag test in cartesian coordinates
+reference =
+configure = --prob=dust_inelastic_collision --ndustfluids=2
+
+<job>
+problem_id  = collision      # problem ID: basename of output filenames
+
+<output2>
+file_type   = hst       # History data dump
+dt          = 1e-4    # time increment between outputs
+data_format = %30.25e
+
+<time>
+cfl_number     = 0.44 # The Courant, Friedrichs, & Lewy (CFL) Number
+nlim           = -1   # cycle limit
+tlim           = 10.  # time limit
+integrator     = rk2  # time integration algorithm
+xorder         = 2    # order of spatial reconstruction
+ncycle_out     = 100  # interval for stdout summary info
+dt_diagnostics = 0    # interval (in STS stages) for stdout extra dt info
+
+
+<mesh>
+nx1         = 16       # Number of zones in X1-direction
+x1min       = 0.0      # minimum value of X1
+x1max       = 100      # maximum value of X1
+ix1_bc      = periodic # Inner-X1 boundary condition flag
+ox1_bc      = periodic # Outer-X1 boundary condition flag
+x1rat       = 1.000    # non-uniform grid ratio
+
+nx2         = 1        # Number of zones in X2-direction
+x2min       = 0.       # minimum value of X2
+x2max       = 1        # maximum value of X2
+ix2_bc      = periodic # Inner-X2 boundary condition flag
+ox2_bc      = periodic # Outer-X2 boundary condition flag
+
+nx3         = 1        # Number of zones in X3-direction
+x3min       = -0.5     # minimum value of X3
+x3max       = 0.5      # maximum value of X3
+ix3_bc      = periodic # Inner-X3 boundary condition flag
+ox3_bc      = periodic # Outer-X3 boundary condition flag
+
+
+
+<hydro>
+gamma           = 1.4        # gamma = C_p/C_v
+iso_sound_speed = 1e0        # isothermal sound speed
+press           = 1e0
+dfloor          = 1.e-8
+pfloor          = 1.e-9
+df_floor        = 1.e-8
+
+<problem>
+rho0            = 1.0               # The density at r0
+user_dt         = 1e-1
+iprob           = 0
+
+<dust>
+Diffusion_Flag    = 0             # The flag of dust diffusion
+DustFeedback_Flag = 1             # The flag of dust feedback term
+
+stopping_time_1   = 2             # The const stopping time of dust
+stopping_time_2   = 1             # The const stopping time of dust
+drag_method       = 2nd-implicit  # drag integrators
+Dissipation_Flag  = 1             # Drag Dissipation

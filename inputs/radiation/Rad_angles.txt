@@ -1,0 +1,26 @@
+prat          1.00e-02 
+crat          1.00e+01 
+reduced_c     1.00e+01 
+Vmax          9.00e-01 
+Tunit         1.00e+07 
+Compt         0  
+rotate_theta  0  
+rotate_phi    0  
+adv_flag:     1  
+nzeta:        0  
+npsi:         0  
+taucell:      5.000000e+00  
+source_flag:  1  
+nfreq      :  1  
+fre_ratio:    1.000000e+00  
+nu_min:       0.000000e+00  
+nu_max:       4.799247e-18  
+iteration:    1  
+red_or_black: 0  
+err_limit:    1.000000e-12  
+n_limit:      100  
+tau_scheme    1  
+ 0   5.773503e-01   5.773503e-01   0.000000e+00    2.500000e-01
+ 1   -5.773503e-01   5.773503e-01   0.000000e+00    2.500000e-01
+ 2   5.773503e-01   -5.773503e-01   0.000000e+00    2.500000e-01
+ 3   -5.773503e-01   -5.773503e-01   0.000000e+00    2.500000e-01
