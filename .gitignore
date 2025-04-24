@@ -59,3 +59,18 @@ meshtest.dat
 
 # genhtml test case description format produced by gendesc
 *.desc
+
+src/pgen/disk_VSI.cpp
+src/pgen/disk_RWI_2D.cpp
+src/pgen/disk_3d_mhd_dust.cpp
+src/pgen/disk_planet_dust_cylindrical.cpp
+src/pgen/disk_planet_dust_spherical.cpp
+src/pgen/kh_dust.cpp
+src/pgen/disk_RWI_2D.cpp
+src/pgen/streaming_stratified.cpp
+src/pgen/disk_streaming_cylindrical.cpp
+src/pgen/dmr_dust.cpp
+src/pgen/dusty_kh.cpp
+src/pgen/visc_dustfluids.cpp
+mac_configure.sh
+shell_configure.sh

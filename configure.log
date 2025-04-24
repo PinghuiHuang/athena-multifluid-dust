@@ -1,10 +1,10 @@
   Your Athena++ distribution has now been configured with the following options: 
-  Problem generator:            hgb
+  Problem generator:            kh_dust
   Coordinate system:            cartesian
-  Equation of state:            isothermal
-  Riemann solver:               hlld
-  Magnetic fields:              ON
-  Number of scalars:            0
+  Equation of state:            adiabatic
+  Riemann solver:               hllc
+  Magnetic fields:              OFF
+  Number of scalars:            1
   Number of dust fluids:        0
   Number of chemical species:   0
   Special relativity:           OFF
@@ -22,7 +22,7 @@
   chem_ode_solver:              OFF
   Debug flags:                  OFF
   Code coverage flags:          OFF
-  Linker flags:                  -L/usr/lib/x86_64-linux-gnu/hdf5/openmpi/lib  -lhdf5
+  Linker flags:                  -L/usr/local/hdf5/lib  -lhdf5
   Floating-point precision:     double
   Number of ghost cells:        2
   MPI parallelism:              ON
@@ -31,4 +31,4 @@
   HDF5 output:                  ON
   HDF5 precision:               double
   Compiler:                     g++-simd
-  Compilation command:          mpicxx  -I/usr/lib/x86_64-linux-gnu/hdf5/openmpi/include -O3 -std=c++11 -fopenmp-simd -fwhole-program -flto -ffast-math -march=native -fprefetch-loop-arrays -fopenmp
+  Compilation command:          mpicxx  -I/usr/local/hdf5/include -O3 -std=c++11 -fopenmp-simd -fwhole-program -flto -ffast-math -march=native -fprefetch-loop-arrays -fopenmp
