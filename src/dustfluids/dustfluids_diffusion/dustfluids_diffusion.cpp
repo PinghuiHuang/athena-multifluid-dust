@@ -44,8 +44,20 @@ DustFluidsDiffusion::DustFluidsDiffusion(DustFluids *pdf, ParameterInput *pin) :
 
   // Turn on dust diffusion
   if (Diffusion_Flag) {
+    if (NGHOST < 2) {
+      std::stringstream msg;
+      msg << "The NGHOST must be larger than or equaled to 2!" << std::endl;
+      ATHENA_ERROR(msg);
+    }
+
     dustfluids_diffusion_defined = true;
     Momentum_Diffusion_Flag = pin->GetOrAddBoolean("dust", "Momentum_Diffusion_Flag", false);
+
+    if ((STS_ENABLED) && Momentum_Diffusion_Flag) {
+      std::stringstream msg;
+      msg << "The momentum corretion of dust diffusion is not compatible with the Super-time-stepping!" << std::endl;
+      ATHENA_ERROR(msg);
+    }
   }
 
   // eddy time is set as 1.0 by default

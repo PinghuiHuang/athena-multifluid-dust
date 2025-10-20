@@ -33,7 +33,6 @@ class DustFluidsDiffusion {
 
   bool dustfluids_diffusion_defined; // true or false
   bool Diffusion_Flag;               // true or false, the flag of inviscid dust fluids
-  //bool ConstNu_Flag;                 // true or false, the flag of using the constant diffusivity of dust
   bool Momentum_Diffusion_Flag;      // true or false, the flag of momentum diffusion of dust fluids
 
   // The flux tensor of dust fluids caused by diffusions
@@ -41,8 +40,8 @@ class DustFluidsDiffusion {
 
   // Functions
   // Calculate the diffusion flux
-  void CalcDustFluidsDiffusionFlux(const AthenaArray<Real> &w, const AthenaArray<Real> &prim_df,
-    const AthenaArray<Real> &w_orb, const AthenaArray<Real> &prim_df_orb,
+  void CalcDustFluidsDiffusionFlux(const AthenaArray<Real> &w, const AthenaArray<Real> &w_df,
+    const AthenaArray<Real> &w_orb, const AthenaArray<Real> &w_df_orb,
     const AthenaArray<Real> &u, const AthenaArray<Real> &cons_df);
 
   // Add the diffusion flux on df_flux
@@ -63,16 +62,16 @@ class DustFluidsDiffusion {
   // Set the constant dust diffusivity if DustDiffusionCoeffFunc == nullptr
   void ConstantDustDiffusivity(DustFluids *pdf,
     MeshBlock *pmb, AthenaArray<Real> &nu_dust, AthenaArray<Real> &cs_dust,
-    int is, int ie, int js, int je, int ks, int ke);
+    int il, int iu, int jl, int ju, int kl, int ku);
 
   // Set the zero dust diffusivity
   void ZeroDustDiffusivity(AthenaArray<Real> &dust_diffusivity, AthenaArray<Real> &dust_cs);
 
   // Concentration and Momentum diffusions
-  void DustFluidsConcentrationDiffusiveFlux(const AthenaArray<Real> &prim_df,
+  void DustFluidsConcentrationDiffusiveFlux(const AthenaArray<Real> &w_df,
     const AthenaArray<Real> &w, AthenaArray<Real> *df_diff_flux);
 
-  void DustFluidsMomentumDiffusiveFlux(const AthenaArray<Real> &prim_df,
+  void DustFluidsMomentumDiffusiveFlux(const AthenaArray<Real> &w_df,
     const AthenaArray<Real> &w, AthenaArray<Real> *df_flx);
 
  private:

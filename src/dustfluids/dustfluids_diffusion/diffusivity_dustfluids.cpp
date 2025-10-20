@@ -37,15 +37,15 @@ class HydroDiffusion;
 
 void DustFluidsDiffusion::ConstantDustDiffusivity(DustFluids *pdf,
     MeshBlock *pmb, AthenaArray<Real> &nu_dust, AthenaArray<Real> &cs_dust,
-    int is, int ie, int js, int je, int ks, int ke) {
+    int il, int iu, int jl, int ju, int kl, int ku) {
 
   Real inv_eddy_time = 1.0/eddy_time_;
   for (int n=0; n<NDUSTFLUIDS; ++n) {
     int dust_id = n;
-    for (int k=ks; k<=ke; ++k) {
-      for (int j=js; j<=je; ++j) {
+    for (int k=kl; k<=ku; ++k) {
+      for (int j=jl; j<=ju; ++j) {
 #pragma omp simd
-        for (int i=is; i<=ie; ++i) {
+        for (int i=il; i<=iu; ++i) {
           Real &diffusivity = nu_dust(dust_id, k, j, i);
           diffusivity       = pdf->const_nu_dust[dust_id];
 
