@@ -930,8 +930,10 @@ TimeIntegratorTaskList::TimeIntegratorTaskList(ParameterInput *pin, Mesh *pm) {
       }
     } else { // STS enabled:
       AddTask(CALC_HYDFLX,NONE);
-      if (NDUSTFLUIDS > 0)
-        AddTask(CALC_DFSFLX,NONE);
+      if (NDUSTFLUIDS > 0) {
+        AddTask(PROPERTIES_DFS,NONE);
+        AddTask(CALC_DFSFLX,PROPERTIES_DFS);
+      }
       if (NSCALARS > 0)
         AddTask(CALC_SCLRFLX,CALC_HYDFLX);
     }

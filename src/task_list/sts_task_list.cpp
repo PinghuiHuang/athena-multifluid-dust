@@ -24,6 +24,8 @@
 // Athena++ headers
 #include "../athena.hpp"
 #include "../bvals/bvals.hpp"
+#include "../dustfluids/dustfluids.hpp"
+#include "../dustfluids/dustfluids_diffusion/dustfluids_diffusion.hpp"
 #include "../eos/eos.hpp"
 #include "../field/field.hpp"
 #include "../field/field_diffusion/field_diffusion.hpp"
@@ -62,7 +64,8 @@ SuperTimeStepTaskList::SuperTimeStepTaskList(
   if (!(pmb->phydro->hdif.hydro_diffusion_defined)
       // short-circuit evaluation makes these safe (won't dereference pscalars=nullptr):
       && !(MAGNETIC_FIELDS_ENABLED && pmb->pfield->fdif.field_diffusion_defined)
-      && !(NSCALARS > 0 && pmb->pscalars->scalar_diffusion_defined)) {
+      && !(NSCALARS > 0 && pmb->pscalars->scalar_diffusion_defined)
+      && !(NDUSTFLUIDS > 0 && pmb->pdustfluids->dfdif.dustfluids_diffusion_defined)) {
     std::stringstream msg;
     msg << "### FATAL ERROR in SuperTimeStepTaskList" << std::endl
         << "Super-time-stepping requires setting parameters for "
@@ -75,6 +78,7 @@ SuperTimeStepTaskList::SuperTimeStepTaskList(
   do_sts_hydro = false;
   do_sts_field = false;
   do_sts_scalar = false;
+  do_sts_dustfluids = false;
   if (pmb->phydro->hdif.hydro_diffusion_defined) {
     do_sts_hydro = true;
     if (pmb->phydro->hdif.nu_iso > 0.0
@@ -110,6 +114,13 @@ SuperTimeStepTaskList::SuperTimeStepTaskList(
       do_sts_scalar = true;
     }
   }
+  if (NDUSTFLUIDS > 0) {
+    if ((pmb->pdustfluids->dfdif.dustfluids_diffusion_defined)
+          && !(pmb->pdustfluids->dfdif.Momentum_Diffusion_Flag)) {
+      do_sts_dustfluids = true;
+    }
+  }
+
 
   // Now assemble list of tasks for each stage of SuperTimeStep integrator
   {using namespace HydroIntegratorTaskNames; // NOLINT (build/namespace)
@@ -132,6 +143,14 @@ SuperTimeStepTaskList::SuperTimeStepTaskList(
         AddTask(CALC_SCLRFLX,(CALC_HYDFLX|DIFFUSE_SCLR));
       } else {
         AddTask(CALC_SCLRFLX,DIFFUSE_SCLR);
+      }
+    }
+    if (do_sts_dustfluids) {
+      AddTask(DIFFUSE_DFS,DIFFUSE_HYD);
+      if (do_sts_hydro) {
+        AddTask(CALC_DFSFLX,(CALC_HYDFLX|DIFFUSE_DFS));
+      } else {
+        AddTask(CALC_DFSFLX,DIFFUSE_DFS);
       }
     }
 
@@ -181,6 +200,29 @@ SuperTimeStepTaskList::SuperTimeStepTaskList(
       }
     }
 
+    if (do_sts_dustfluids) {
+      if (pm->multilevel || SHEAR_PERIODIC) { // SMR or AMR or shear periodic
+        AddTask(SEND_DFSFLX,CALC_DFSFLX);
+        AddTask(RECV_DFSFLX,CALC_DFSFLX);
+        if (SHEAR_PERIODIC) {
+          AddTask(SEND_DFSFLXSH,RECV_DFSFLX);
+          AddTask(RECV_DFSFLXSH,(SEND_DFSFLX|RECV_DFSFLX));
+          AddTask(INT_DFS,RECV_DFSFLXSH);
+        } else {
+          AddTask(INT_DFS,RECV_DFSFLX);
+        }
+      } else {
+        AddTask(INT_DFS, CALC_DFSFLX);
+      }
+      AddTask(SEND_DFS,INT_DFS);
+      AddTask(RECV_DFS,NONE);
+      AddTask(SETB_DFS,(RECV_DFS|INT_DFS));
+      if (SHEAR_PERIODIC) {
+        AddTask(SEND_DFSSH,SETB_DFS);
+        AddTask(RECV_DFSSH,SEND_DFSSH);
+      }
+    }
+
     if (do_sts_field) { // field diffusion
       // compute MHD fluxes, integrate field
       if (do_sts_hydro) {
@@ -207,7 +249,37 @@ SuperTimeStepTaskList::SuperTimeStepTaskList(
 
       // prolongate, compute new primitives
       if (pm->multilevel) { // SMR or AMR
-        if (do_sts_scalar) {
+        if (do_sts_scalar && do_sts_dustfluids) {
+          if (do_sts_hydro) {
+            if (SHEAR_PERIODIC) {
+              AddTask(PROLONG,(SEND_HYD|RECV_HYDSH|SEND_FLD|RECV_FLDSH
+                               |SEND_SCLR|RECV_SCLRSH|SEND_DFS|RECV_DFSSH));
+            } else {
+              AddTask(PROLONG,(SEND_HYD|SETB_HYD|SEND_FLD|SETB_FLD|SEND_SCLR|SETB_SCLR|SEND_DFS|SETB_DFS));
+            }
+          } else {
+            if (SHEAR_PERIODIC) {
+              AddTask(PROLONG,(SEND_FLD|RECV_FLDSH|SEND_SCLR|RECV_SCLRSH|SEND_DFS|RECV_DFS));
+            } else {
+              AddTask(PROLONG,(SEND_FLD|SETB_FLD|SEND_SCLR|SETB_SCLR|SEND_DFS|RECV_DFS));
+            }
+          }
+        } else if (do_sts_dustfluids && !(do_sts_scalar)) {
+          if (do_sts_hydro) {
+            if (SHEAR_PERIODIC) {
+              AddTask(PROLONG,(SEND_HYD|RECV_HYDSH|SEND_FLD|RECV_FLDSH
+                               |SEND_DFS|RECV_DFSSH));
+            } else {
+              AddTask(PROLONG,(SEND_HYD|SETB_HYD|SEND_FLD|SETB_FLD|SEND_DFS|SETB_DFS));
+            }
+          } else {
+            if (SHEAR_PERIODIC) {
+              AddTask(PROLONG,(SEND_FLD|RECV_FLDSH|SEND_DFS|RECV_DFSSH));
+            } else {
+              AddTask(PROLONG,(SEND_FLD|SETB_FLD|SEND_DFS|SETB_DFS));
+            }
+          }
+        } else if (do_sts_scalar && !(do_sts_dustfluids)) {
           if (do_sts_hydro) {
             if (SHEAR_PERIODIC) {
               AddTask(PROLONG,(SEND_HYD|RECV_HYDSH|SEND_FLD|RECV_FLDSH
@@ -239,7 +311,35 @@ SuperTimeStepTaskList::SuperTimeStepTaskList(
         }
         AddTask(CONS2PRIM,PROLONG);
       } else {
-        if (do_sts_scalar) {
+        if (do_sts_scalar && do_sts_dustfluids) {
+          if (do_sts_hydro) {
+            if (SHEAR_PERIODIC) {
+              AddTask(CONS2PRIM,(RECV_HYDSH|RECV_FLDSH|RECV_SCLRSH|RECV_DFSSH));
+            } else {
+              AddTask(CONS2PRIM,(SETB_HYD|SETB_FLD|SETB_SCLR|SETB_DFS));
+            }
+          } else {
+            if (SHEAR_PERIODIC) {
+              AddTask(CONS2PRIM,(RECV_FLDSH|RECV_SCLRSH|RECV_DFSSH));
+            } else {
+              AddTask(CONS2PRIM,(SETB_FLD|SETB_SCLR|SETB_DFS));
+            }
+          }
+        } else if (do_sts_dustfluids && !(do_sts_scalar)) {
+          if (do_sts_hydro) {
+            if (SHEAR_PERIODIC) {
+              AddTask(CONS2PRIM,(RECV_HYDSH|RECV_FLDSH|RECV_DFSSH));
+            } else {
+              AddTask(CONS2PRIM,(SETB_HYD|SETB_FLD|SETB_DFS));
+            }
+          } else {
+            if (SHEAR_PERIODIC) {
+              AddTask(CONS2PRIM,(RECV_FLDSH|RECV_DFSSH));
+            } else {
+              AddTask(CONS2PRIM,(SETB_FLD|SETB_DFS));
+            }
+          }
+        } else if (do_sts_scalar && !(do_sts_dustfluids)) {
           if (do_sts_hydro) {
             if (SHEAR_PERIODIC) {
               AddTask(CONS2PRIM,(RECV_HYDSH|RECV_FLDSH|RECV_SCLRSH));
@@ -272,7 +372,19 @@ SuperTimeStepTaskList::SuperTimeStepTaskList(
     } else if (do_sts_hydro) {  // no field diffusion
       // prolongate, compute new primitives
       if (pm->multilevel) { // SMR or AMR
-        if (do_sts_scalar) {
+        if (do_sts_scalar && do_sts_dustfluids) {
+          if (SHEAR_PERIODIC) {
+            AddTask(PROLONG,(SEND_HYD|RECV_HYDSH|SEND_SCLR|RECV_SCLRSH|SEND_DFS|RECV_DFSSH));
+          } else {
+            AddTask(PROLONG,(SEND_HYD|SETB_HYD|SEND_SCLR|SETB_SCLR|SEND_DFS|SETB_DFS));
+          }
+        } else if (do_sts_dustfluids && !(do_sts_scalar)) {
+          if (SHEAR_PERIODIC) {
+            AddTask(PROLONG,(SEND_HYD|RECV_HYDSH|SEND_DFS|RECV_DFSSH));
+          } else {
+            AddTask(PROLONG,(SEND_HYD|SETB_HYD|SEND_DFS|SETB_DFS));
+          }
+        } else if (do_sts_scalar && !(do_sts_dustfluids)) {
           if (SHEAR_PERIODIC) {
             AddTask(PROLONG,(SEND_HYD|RECV_HYDSH|SEND_SCLR|RECV_SCLRSH));
           } else {
@@ -287,7 +399,19 @@ SuperTimeStepTaskList::SuperTimeStepTaskList(
         }
         AddTask(CONS2PRIM,PROLONG);
       } else {
-        if (do_sts_scalar) {
+        if (do_sts_scalar && do_sts_dustfluids) {
+          if (SHEAR_PERIODIC) {
+            AddTask(CONS2PRIM,(RECV_HYDSH|RECV_SCLRSH|RECV_DFSSH));
+          } else {
+            AddTask(CONS2PRIM,(SETB_HYD|SETB_SCLR|SETB_DFS));
+          }
+        } else if (do_sts_dustfluids && !(do_sts_scalar)) {
+          if (SHEAR_PERIODIC) {
+            AddTask(CONS2PRIM,(RECV_HYDSH|RECV_SCLRSH|RECV_DFSSH));
+          } else {
+            AddTask(CONS2PRIM,(SETB_HYD|SETB_DFS));
+          }
+        } else if (do_sts_scalar && !(do_sts_dustfluids)) {
           if (SHEAR_PERIODIC) {
             AddTask(CONS2PRIM,(RECV_HYDSH|RECV_SCLRSH));
           } else {
@@ -517,6 +641,61 @@ void SuperTimeStepTaskList::AddTask(const TaskID& id, const TaskID& dep) {
         static_cast<TaskStatus (TaskList::*)(MeshBlock*,int)>
         (&TimeIntegratorTaskList::ReceiveScalarsFluxShear);
     task_list_[ntasks].lb_time = false;
+  } else if (id == CALC_DFSFLX) {
+    task_list_[ntasks].TaskFunc=
+        static_cast<TaskStatus (TaskList::*)(MeshBlock*,int)>
+        (&SuperTimeStepTaskList::CalculateDustFluidsFlux_STS);
+    task_list_[ntasks].lb_time = true;
+  } else if (id == SEND_DFSFLX) {
+    task_list_[ntasks].TaskFunc=
+        static_cast<TaskStatus (TaskList::*)(MeshBlock*,int)>
+        (&TimeIntegratorTaskList::SendDustFluidsFlux);
+    task_list_[ntasks].lb_time = true;
+  } else if (id == RECV_DFSFLX) {
+    task_list_[ntasks].TaskFunc=
+        static_cast<TaskStatus (TaskList::*)(MeshBlock*,int)>
+        (&TimeIntegratorTaskList::ReceiveAndCorrectDustFluidsFlux);
+    task_list_[ntasks].lb_time = false;
+  } else if (id == INT_DFS) {
+    task_list_[ntasks].TaskFunc=
+        static_cast<TaskStatus (TaskList::*)(MeshBlock*,int)>
+        (&SuperTimeStepTaskList::IntegrateDustFluids_STS);
+    task_list_[ntasks].lb_time = true;
+  } else if (id == SEND_DFS) {
+    task_list_[ntasks].TaskFunc=
+        static_cast<TaskStatus (TaskList::*)(MeshBlock*,int)>
+        (&TimeIntegratorTaskList::SendDustFluids);
+    task_list_[ntasks].lb_time = true;
+  } else if (id == RECV_DFS) {
+    task_list_[ntasks].TaskFunc=
+        static_cast<TaskStatus (TaskList::*)(MeshBlock*,int)>
+        (&TimeIntegratorTaskList::ReceiveDustFluids);
+    task_list_[ntasks].lb_time = false;
+  } else if (id == SETB_DFS) {
+    task_list_[ntasks].TaskFunc=
+        static_cast<TaskStatus (TaskList::*)(MeshBlock*,int)>
+        (&TimeIntegratorTaskList::SetBoundariesDustFluids);
+    task_list_[ntasks].lb_time = true;
+  } else if (id == SEND_DFSFLXSH) {
+    task_list_[ntasks].TaskFunc=
+        static_cast<TaskStatus (TaskList::*)(MeshBlock*,int)>
+        (&TimeIntegratorTaskList::SendDustFluidsFluxShear);
+    task_list_[ntasks].lb_time = true;
+  } else if (id == RECV_DFSFLXSH) {
+    task_list_[ntasks].TaskFunc=
+        static_cast<TaskStatus (TaskList::*)(MeshBlock*,int)>
+        (&TimeIntegratorTaskList::ReceiveDustFluidsFluxShear);
+    task_list_[ntasks].lb_time = false;
+  } else if (id == SEND_DFSSH) {
+    task_list_[ntasks].TaskFunc=
+        static_cast<TaskStatus (TaskList::*)(MeshBlock*,int)>
+        (&TimeIntegratorTaskList::SendDustFluidsShear);
+    task_list_[ntasks].lb_time = true;
+  } else if (id == RECV_DFSSH) {
+    task_list_[ntasks].TaskFunc=
+        static_cast<TaskStatus (TaskList::*)(MeshBlock*,int)>
+        (&TimeIntegratorTaskList::ReceiveDustFluidsShear);
+    task_list_[ntasks].lb_time = false;
   } else if (id == PROLONG) {
     task_list_[ntasks].TaskFunc=
         static_cast<TaskStatus (TaskList::*)(MeshBlock*,int)>
@@ -561,6 +740,11 @@ void SuperTimeStepTaskList::AddTask(const TaskID& id, const TaskID& dep) {
     task_list_[ntasks].TaskFunc=
         static_cast<TaskStatus (TaskList::*)(MeshBlock*,int)>
         (&TimeIntegratorTaskList::DiffuseScalars);
+    task_list_[ntasks].lb_time = true;
+  } else if (id == DIFFUSE_DFS) {
+    task_list_[ntasks].TaskFunc=
+        static_cast<TaskStatus (TaskList::*)(MeshBlock*,int)>
+        (&TimeIntegratorTaskList::DiffuseDustFluids);
     task_list_[ntasks].lb_time = true;
   } else {
     std::stringstream msg;
@@ -660,6 +844,8 @@ void SuperTimeStepTaskList::StartupTaskList(MeshBlock *pmb, int stage) {
   pmb->phydro->hdif.ClearFlux(pmb->phydro->flux);
   if (MAGNETIC_FIELDS_ENABLED)
     pmb->pfield->fdif.ClearEMF(pmb->pfield->e);
+  if (NDUSTFLUIDS > 0)
+    pmb->pdustfluids->dfdif.ClearDustFluidsFlux(pmb->pdustfluids->df_flux);
   if (NSCALARS > 0) {
     PassiveScalars *ps = pmb->pscalars;
     ps->s_flux[X1DIR].ZeroClear();
@@ -689,6 +875,18 @@ TaskStatus SuperTimeStepTaskList::CalculateHydroFlux_STS(MeshBlock *pmb, int sta
   Hydro *ph = pmb->phydro;
   if (stage <= nstages) {
     ph->CalculateFluxes_STS();
+    return TaskStatus::next;
+  }
+  return TaskStatus::fail;
+}
+
+//----------------------------------------------------------------------------------------
+//! Functions to calculates scalar flux
+
+TaskStatus SuperTimeStepTaskList::CalculateDustFluidsFlux_STS(MeshBlock *pmb, int stage) {
+  DustFluids *pdf = pmb->pdustfluids;
+  if (stage <= nstages) {
+    pdf->CalculateFluxes_STS();
     return TaskStatus::next;
   }
   return TaskStatus::fail;
@@ -800,6 +998,45 @@ TaskStatus SuperTimeStepTaskList::IntegrateScalars_STS(MeshBlock *pmb, int stage
   return TaskStatus::fail;
 }
 
+TaskStatus SuperTimeStepTaskList::IntegrateDustFluids_STS(MeshBlock *pmb, int stage) {
+  DustFluids *pdf = pmb->pdustfluids;
+
+  if (pmb->pmy_mesh->fluid_setup != FluidFormulation::evolve) return TaskStatus::next;
+
+  // set registers
+  if (pmb->pmy_mesh->sts_integrator == "rkl2" && stage == 1) {
+    pdf->df_u0 = pdf->df_u;
+  }
+  pdf->df_u2.SwapAthenaArray(pdf->df_u1);
+  pdf->df_u1.SwapAthenaArray(pdf->df_u);
+
+  // update u
+  if (stage <= nstages) {
+    Real ave_wghts[5];
+    ave_wghts[0] = 0.;
+    ave_wghts[1] = pmb->pmy_mesh->muj;
+    ave_wghts[2] = pmb->pmy_mesh->nuj;
+    ave_wghts[3] = 0.;
+    ave_wghts[4] = 0.;
+    if (pmb->pmy_mesh->sts_integrator == "rkl2") {
+      ave_wghts[3] = 1. - pmb->pmy_mesh->muj - pmb->pmy_mesh->nuj;
+      ave_wghts[4] = pmb->pmy_mesh->gammaj_tilde;
+    }
+    pmb->WeightedAve(pdf->df_u, pdf->df_u1, pdf->df_u2, pdf->df_u0, pdf->df_u_fl_div, ave_wghts);
+
+    Real wght = pmb->pmy_mesh->muj_tilde*pmb->pmy_mesh->dt;
+    if (pmb->pmy_mesh->sts_integrator == "rkl2") {
+      wght *= 0.5;
+    }
+    pdf->AddDustFluidsFluxDivergence_STS(wght, stage, pdf->df_u, pdf->df_u_fl_div);
+    pmb->pcoord->AddCoordTermsDivergence_STS(wght, stage, pdf->df_flux,
+                                             pdf->df_u, pdf->df_u_fl_div);
+
+    return TaskStatus::next;
+  }
+  return TaskStatus::fail;
+}
+
 //----------------------------------------------------------------------------------------
 //! Functions to integrate field variables
 
@@ -869,6 +1106,7 @@ TaskStatus SuperTimeStepTaskList::Primitives_STS(MeshBlock *pmb, int stage) {
   Hydro *ph = pmb->phydro;
   Field *pf = pmb->pfield;
   PassiveScalars *ps = pmb->pscalars;
+  DustFluids *pdf = pmb->pdustfluids;
   BoundaryValues *pbval = pmb->pbval;
 
   int il = pmb->is, iu = pmb->ie, jl = pmb->js, ju = pmb->je, kl = pmb->ks, ku = pmb->ke;
@@ -908,6 +1146,14 @@ TaskStatus SuperTimeStepTaskList::Primitives_STS(MeshBlock *pmb, int stage) {
                                                    pmb->pcoord, il, iu, jl, ju, kl, ku);
     }
 
+    if (do_sts_dustfluids) {
+      pmb->peos->DustFluidsConservedToPrimitive(pdf->df_u, pdf->dfccdif.diff_mom_cc,
+                                  pdf->df_w, pdf->df_w1, pmb->pcoord, il, iu, jl, ju, kl, ku);
+      if (pmb->porb->orbital_advection_defined) {
+        pmb->porb->ResetOrbitalSystemConversionFlag();
+      }
+    }
+
     // fourth-order EOS:
     if (pmb->precon->xorder == 4) {
       // for hydro, shrink buffer by 1 on all sides
@@ -923,6 +1169,9 @@ TaskStatus SuperTimeStepTaskList::Primitives_STS(MeshBlock *pmb, int stage) {
       if (do_sts_hydro || do_sts_field) {
         pmb->phydro->hbvar.SwapHydroQuantity(pmb->phydro->w, HydroBoundaryQuantity::prim);
       }
+      if (do_sts_dustfluids) {
+        pmb->pdustfluids->dfbvar.SwapDustFluidsQuantity(pmb->pdustfluids->df_w, DustFluidsBoundaryQuantity::prim_df);
+      }
       if (do_sts_scalar) {
         pmb->pscalars->sbvar.var_cc = &(pmb->pscalars->r);
         if (pmb->pmy_mesh->multilevel) {
@@ -937,6 +1186,10 @@ TaskStatus SuperTimeStepTaskList::Primitives_STS(MeshBlock *pmb, int stage) {
         pmb->peos->ConservedToPrimitiveCellAverage(ph->u, ph->w, pf->b,
                                                    ph->w, pf->bcc, pmb->pcoord,
                                                    il, iu, jl, ju, kl, ku);
+      }
+      if (do_sts_dustfluids) {
+        pmb->peos->DustFluidsConservedToPrimitiveCellAverage(
+            pdf->df_u, pdf->df_w, pdf->df_w, pmb->pcoord, il, iu, jl, ju, kl, ku);
       }
       if (do_sts_scalar) {
         pmb->peos->PassiveScalarConservedToPrimitiveCellAverage(
@@ -956,6 +1209,9 @@ TaskStatus SuperTimeStepTaskList::PhysicalBoundary_STS(MeshBlock *pmb, int stage
   if (stage <= nstages) {
     if (do_sts_hydro || do_sts_field) {
       pmb->phydro->hbvar.SwapHydroQuantity(pmb->phydro->w, HydroBoundaryQuantity::prim);
+    }
+    if (do_sts_dustfluids) {
+      pmb->pdustfluids->dfbvar.SwapDustFluidsQuantity(pmb->pdustfluids->df_w, DustFluidsBoundaryQuantity::prim_df);
     }
     if (do_sts_scalar) {
       pmb->pscalars->sbvar.var_cc = &(pmb->pscalars->r);
