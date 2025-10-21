@@ -4,26 +4,24 @@ reference = Streaming Instability Linear Test, Youdin & Johnsen 2007
 configure = --prob=streaming_eign --eos=isothermal --ndustfluids=1
 
 <job>
-problem_id  = streaming       # problem ID: basename of output filenames
+problem_id  = streaming_eigen   # problem ID: basename of output filenames
 
 <output1>
 file_type      = hst            # History data dump
 dt             = 0.01           # time increment between outputs
 data_format    = %24.16e        # Optional data format string
-orbital_system = 0              # read orbital system output
 
 <output2>
-file_type   = hdf5         # Binary data dump
+file_type   = vtk         # Binary data dump
 variable    = prim         # variables to be output
 dt          = 0.1          # time increment between outputs
-ghost_zones = 0
 
 <output3>
 file_type   = rst          # Restart dump
 dt          = 0.2          # time increment between outputs
 
 <time>
-cfl_number     = 0.3         # The Courant, Friedrichs, & Lewy (CFL) Number
+cfl_number     = 0.4         # The Courant, Friedrichs, & Lewy (CFL) Number
 nlim           = -1          # cycle limit
 tlim           = 10.         # time limit
 integrator     = vl2         # time integration algorithm
@@ -34,13 +32,13 @@ dt_diagnostics = 0           # interval (in STS stages) for stdout extra dt info
 
 
 <mesh>
-nx1         = 64            # Number of zones in X1-direction
+nx1         = 128            # Number of zones in X1-direction
 x1min       = -0.5           # minimum value of X1
 x1max       = 0.5            # maximum value of X1
 ix1_bc      = shear_periodic # Inner-X1 boundary condition flag
 ox1_bc      = shear_periodic # Outer-X1 boundary condition flag
 
-nx2         = 64            # Number of zones in X2-direction
+nx2         = 128            # Number of zones in X2-direction
 x2min       = -0.5           # minimum value of X2
 x2max       = 0.5            # maximum value of X2
 ix2_bc      = periodic       # Inner-X2 boundary condition flag
@@ -52,13 +50,12 @@ x3max       = 0.5            # maximum value of X3
 ix3_bc      = periodic       # Inner-X3 boundary condition flag
 ox3_bc      = periodic       # Outer-X3 boundary condition flag
 
-<meshblock>
-nx1         = 16
-nx2         = 16
-nx3         = 1
+#<meshblock>
+#nx1         = 16
+#nx2         = 16
+#nx3         = 1
 
 <hydro>
-gamma           = 1.6666666666666667 # gamma = C_p/C_v
 iso_sound_speed = 95.49296585        # isothermal sound speed, Lin A
 
 <problem>
@@ -66,7 +63,7 @@ ipert      = 1    # 1 for random d,P, 2 for uniform Vx
 nwx        = 1    # wavenumber in x1
 nwy        = 1    # wavenumber in x2
 nwz        = 1    # wavenumber in x3
-rhog0      = 1.0
+rhog0      = 1
 
 # Eigen mode of Lin A
 Kpar             = 30.00

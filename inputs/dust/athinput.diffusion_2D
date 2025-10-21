@@ -1,0 +1,95 @@
+<comment>
+problem   = viscous shear flow
+reference =
+configure = --prob=visc --coord=cartesian --eos=isothermal (-sts)
+
+<job>
+problem_id  = diffusion      # problem ID: basename of output filenames
+
+<output1>
+file_type   = hst       # History data dump
+dt          = 1e-4      # time increment between outputs
+data_format = %24.16e # output precision
+
+<output2>
+file_type   = hdf5    # tab data dump
+variable    = prim    # variable(s) to output
+data_format = %24.16e # output precision
+dt          = 5e-2    # time increment between outputs
+ghost_zones = 0
+
+<output3>
+file_type   = hdf5    # tab data dump
+variable    = cons    # variable(s) to output
+data_format = %24.16e # output precision
+dt          = 5e-2    # time increment between outputs
+ghost_zones = 0
+
+<output4>
+file_type   = rst    # tab data dump
+dt          = 1e0    # time increment between outputs
+
+<time>
+cfl_number     = 0.3 # The Courant, Friedrichs, & Lewy (CFL) Number
+nlim           = -1  # cycle limit
+tlim           = 6.0 # time limit
+integrator     = vl2 # time integration algorithm
+xorder         = 2   # order of spatial reconstruction
+ncycle_out     = 10  # interval for stdout summary info
+dt_diagnostics = 0   # interval (in STS stages) for stdout extra dt info
+
+<mesh>
+nx1         = 256     # Number of zones in X1-direction
+x1min       = 0.0     # minimum value of X1
+x1max       = 20.0      # maximum value of X1
+ix1_bc      = periodic # Inner-X1 boundary condition flag
+ox1_bc      = periodic  # Outer-X1 boundary condition flag
+
+nx2         = 256        # Number of zones in X2-direction
+x2min       = 0.0     # minimum value of X2
+x2max       = 20.0      # maximum value of X2
+ix2_bc      = periodic # Inner-X2 boundary condition flag
+ox2_bc      = periodic # Outer-X2 boundary condition flag
+
+nx3         = 1        # Number of zones in X3-direction
+x3min       = -0.5     # minimum value of X3
+x3max       = 0.5      # maximum value of X3
+ix3_bc      = periodic # Inner-X3 boundary condition flag
+ox3_bc      = periodic # Outer-X3 boundary condition flag
+
+refinement  = None
+
+<meshblock>
+nx1 = 64
+nx2 = 64
+nx3 = 1
+
+<hydro>
+gamma           = 1.66666667 # gamma = C_p/C_v
+iso_sound_speed = 1.0        # isothermal sound speed
+
+<problem>
+r0       = 1.0 # initial location of the shear flow
+d0       = 1.0
+x0       = 10.0
+v1       = 1.0 # amplitude of Gaussian velocity distr.
+v2       = 1.0 # amplitude of Gaussian velocity distr.
+v3       = 0.0 # amplitude of Gaussian velocity distr.
+t0       = 0.5 # time used in initial profile
+A0       = 5.0
+sigma_x1 = 2.0
+sigma_x2 = 2.0
+offset   = 1.0
+iprob    = 0   # viscous shearing density column
+nu_iso   = 1.0
+#user_dt  = 1e-4
+
+<dust>
+Diffusion_Flag          = 1            # The flag of dust diffusion
+Momentum_Diffusion_Flag = 1            # The flag of momentum diffusion
+DustFeedback_Flag       = 1            # The flag of dust feedback term
+
+stopping_time_1         = 1e-2         # The const stopping time of dust
+nu_dust_1               = 1            # The const nu_d of dust
+
+drag_method             = 2nd-implicit # Drag integrators
