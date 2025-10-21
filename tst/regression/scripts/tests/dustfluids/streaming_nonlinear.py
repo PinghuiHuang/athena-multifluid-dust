@@ -43,10 +43,11 @@ def prepare(**kwargs):
 
     # Configure as though we ran
     #     python configure.py --prob=streaming_eigen --ndustfluids=1 eos=isothermal nghost=3
-    athena.configure(prob='streaming_linear',
+    athena.configure(prob='streaming_nonlinear',
                      ndustfluids='1',
                      eos='isothermal',
                      nghost='3',
+                     flux='roe',
                      **kwargs)
 
     # Call make as though we ran
@@ -63,11 +64,12 @@ def run(**kwargs):
     This function is called second. It is responsible for calling the Athena++ binary in
     such a way as to produce testable output. It takes no inputs and produces no outputs.
     """
-    arguments = ['time/tlim=2',
+    arguments = ['time/tlim=62.84',
+                 'output2/file_type=vtk',
                  'mesh/nx1=64',
                  'mesh/nx2=64']
 
-    athena.run('dust/athinput.streaming_LinA', arguments)
+    athena.run('dust/athinput.streaming_RunBA', arguments)
     return
 
 

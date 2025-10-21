@@ -50,6 +50,9 @@ diffusion_viscous_diffusion_sts
     velocity field. Convergence of L1 norm of the error
     in v is tested. Expected 1st order conv. for STS.
 
+streaming_linear.py
+    Regression test based on the linear growth rates of streaming instability.
+
 eos_eos_hdf5_table
     Regression test for general EOS 1D Sod shock tube with HDF5 tables.
 
