@@ -316,6 +316,12 @@ void ATHDF5Output::WriteOutputFile(Mesh *pm, ParameterInput *pin, bool flag) {
   if (output_params.output_sumx1) nx1=1;
   if (output_params.output_sumx2) nx2=1;
   if (output_params.output_sumx3) nx3=1;
+  if (output_params.output_avgx1) nx1=1;
+  if (output_params.output_avgx2) nx2=1;
+  if (output_params.output_avgx3) nx3=1;
+  if (output_params.output_maxx1) nx1=1;
+  if (output_params.output_maxx2) nx2=1;
+  if (output_params.output_maxx3) nx3=1;
 
   // Allocate contiguous buffers for data in memory
   levels_mesh = new int[num_blocks_local];
@@ -356,6 +362,26 @@ void ATHDF5Output::WriteOutputFile(Mesh *pm, ParameterInput *pin, bool flag) {
         out_ke = out_ks;
       }
 
+      if (output_params.output_avgx1) {
+        out_ie = out_is;
+      }
+      if (output_params.output_avgx2) {
+        out_je = out_js;
+      }
+      if (output_params.output_avgx3) {
+        out_ke = out_ks;
+      }
+
+      if (output_params.output_maxx1) {
+        out_ie = out_is;
+      }
+      if (output_params.output_maxx2) {
+        out_je = out_js;
+      }
+      if (output_params.output_maxx3) {
+        out_ke = out_ks;
+      }
+
       // Load location information
       levels_mesh[nba] = pmb->loc.level - pm->root_level;
       locations_mesh[nba*3 + 0] = pmb->loc.lx1;
@@ -370,6 +396,22 @@ void ATHDF5Output::WriteOutputFile(Mesh *pm, ParameterInput *pin, bool flag) {
             pmb->pcoord->x1f(output_params.islice+1));
         x1v_mesh[nba*nx1] = static_cast<H5Real>(pmb->pcoord->x1v(output_params.islice));
       } else if (output_params.output_sumx1) {
+        x1f_mesh[nba*(nx1+1)] = pmb->pcoord->x1f(pmb->is);
+        x1f_mesh[nba*(nx1+1)+1] = pmb->pcoord->x1f(pmb->ie+1);
+        if (pmb->block_size.nx1 % 2 == 0) {
+          x1v_mesh[nba*nx1] = pmb->pcoord->x1f((pmb->is + pmb->ie + 1) / 2);
+        } else {
+          x1v_mesh[nba*nx1] = pmb->pcoord->x1v((pmb->is + pmb->ie) / 2);
+        }
+      } else if (output_params.output_avgx1) {
+        x1f_mesh[nba*(nx1+1)] = pmb->pcoord->x1f(pmb->is);
+        x1f_mesh[nba*(nx1+1)+1] = pmb->pcoord->x1f(pmb->ie+1);
+        if (pmb->block_size.nx1 % 2 == 0) {
+          x1v_mesh[nba*nx1] = pmb->pcoord->x1f((pmb->is + pmb->ie + 1) / 2);
+        } else {
+          x1v_mesh[nba*nx1] = pmb->pcoord->x1v((pmb->is + pmb->ie) / 2);
+        }
+      } else if (output_params.output_maxx1) {
         x1f_mesh[nba*(nx1+1)] = pmb->pcoord->x1f(pmb->is);
         x1f_mesh[nba*(nx1+1)+1] = pmb->pcoord->x1f(pmb->ie+1);
         if (pmb->block_size.nx1 % 2 == 0) {
@@ -398,6 +440,22 @@ void ATHDF5Output::WriteOutputFile(Mesh *pm, ParameterInput *pin, bool flag) {
         } else {
           x2v_mesh[nba*nx2] = pmb->pcoord->x2v((pmb->js + pmb->je) / 2);
         }
+      } else if (output_params.output_avgx2) {
+        x2f_mesh[nba*(nx2+1)] = pmb->pcoord->x2f(pmb->js);
+        x2f_mesh[nba*(nx2+1)+1] = pmb->pcoord->x2f(pmb->je+1);
+        if (pmb->block_size.nx2 % 2 == 0) {
+          x2v_mesh[nba*nx2] = pmb->pcoord->x2f((pmb->js + pmb->je + 1) / 2);
+        } else {
+          x2v_mesh[nba*nx2] = pmb->pcoord->x2v((pmb->js + pmb->je) / 2);
+        }
+      } else if (output_params.output_maxx2) {
+        x2f_mesh[nba*(nx2+1)] = pmb->pcoord->x2f(pmb->js);
+        x2f_mesh[nba*(nx2+1)+1] = pmb->pcoord->x2f(pmb->je+1);
+        if (pmb->block_size.nx2 % 2 == 0) {
+          x2v_mesh[nba*nx2] = pmb->pcoord->x2f((pmb->js + pmb->je + 1) / 2);
+        } else {
+          x2v_mesh[nba*nx2] = pmb->pcoord->x2v((pmb->js + pmb->je) / 2);
+        }
       } else {
         for (int j=out_js, index=0; j <= out_je+1; ++j, ++index)
           x2f_mesh[nba*(nx2+1) + index] = static_cast<H5Real>(pmb->pcoord->x2f(j));
@@ -412,6 +470,22 @@ void ATHDF5Output::WriteOutputFile(Mesh *pm, ParameterInput *pin, bool flag) {
         x3v_mesh[nba*nx3]
             = static_cast<H5Real>(pmb->pcoord->x3v(output_params.kslice));
       } else if (output_params.output_sumx3) {
+        x3f_mesh[nba*(nx3+1)] = pmb->pcoord->x3f(pmb->ks);
+        x3f_mesh[nba*(nx3+1)+1] = pmb->pcoord->x3f(pmb->ke+1);
+        if (pmb->block_size.nx3 % 2 == 0) {
+          x3v_mesh[nba*nx3] = pmb->pcoord->x3f((pmb->ks + pmb->ke + 1) / 2);
+        } else {
+          x3v_mesh[nba*nx3] = pmb->pcoord->x3v((pmb->ks + pmb->ke) / 2);
+        }
+      } else if (output_params.output_avgx3) {
+        x3f_mesh[nba*(nx3+1)] = pmb->pcoord->x3f(pmb->ks);
+        x3f_mesh[nba*(nx3+1)+1] = pmb->pcoord->x3f(pmb->ke+1);
+        if (pmb->block_size.nx3 % 2 == 0) {
+          x3v_mesh[nba*nx3] = pmb->pcoord->x3f((pmb->ks + pmb->ke + 1) / 2);
+        } else {
+          x3v_mesh[nba*nx3] = pmb->pcoord->x3v((pmb->ks + pmb->ke) / 2);
+        }
+      } else if (output_params.output_maxx3) {
         x3f_mesh[nba*(nx3+1)] = pmb->pcoord->x3f(pmb->ks);
         x3f_mesh[nba*(nx3+1)+1] = pmb->pcoord->x3f(pmb->ke+1);
         if (pmb->block_size.nx3 % 2 == 0) {
