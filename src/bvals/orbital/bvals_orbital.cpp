@@ -1140,7 +1140,7 @@ void OrbitalBoundaryCommunication::SetHydroBufferSameLevel(
               xl -= onx; xu -= onx;
             }
             for(int nph=0 ; nph<NHYDRO; nph++) {
-#pragma omp simd
+//#pragma omp simd
               for (int j=xl; j<=xu; j++) {
                 uo(nph,k,i,j) = buf[p++];
               }
@@ -1157,7 +1157,7 @@ void OrbitalBoundaryCommunication::SetHydroBufferSameLevel(
               xl += onx; xu += onx;
             }
             for(int nph=0 ; nph<NHYDRO; nph++) {
-#pragma omp simd
+//#pragma omp simd
               for (int j=xl; j<=xu; j++) {
                 uo(nph,k,i,j) = buf[p++];
               }
@@ -1183,7 +1183,7 @@ void OrbitalBoundaryCommunication::SetHydroBufferSameLevel(
               xl -= onx; xu -= onx;
             }
             for(int nph=0 ; nph<NHYDRO; nph++) {
-#pragma omp simd
+//#pragma omp simd
               for (int k=xl; k<=xu; k++) {
                 uo(nph,j,i,k) = buf[p++];
               }
@@ -1200,7 +1200,7 @@ void OrbitalBoundaryCommunication::SetHydroBufferSameLevel(
               xl += onx; xu += onx;
             }
             for(int nph=0 ; nph<NHYDRO; nph++) {
-#pragma omp simd
+//#pragma omp simd
               for (int k=xl; k<=xu; k++) {
                 uo(nph,j,i,k) = buf[p++];
               }
@@ -2777,7 +2777,7 @@ void OrbitalBoundaryCommunication::SetDustFluidsBufferSameLevel(
               xl -= onx; xu -= onx;
             }
             for(int ndv=0 ; ndv<NDUSTVARS; ndv++) {
-#pragma omp simd
+//#pragma omp simd
               for(int j=xl; j<=xu; j++) {
                 df_uo(ndv,k,i,j) = buf[p++];
               }
@@ -2794,7 +2794,7 @@ void OrbitalBoundaryCommunication::SetDustFluidsBufferSameLevel(
               xl += onx; xu += onx;
             }
             for(int ndv=0 ; ndv<NDUSTVARS; ndv++) {
-#pragma omp simd
+//#pragma omp simd
               for(int j=xl; j<=xu; j++) {
                 df_uo(ndv,k,i,j) = buf[p++];
               }
@@ -2820,7 +2820,7 @@ void OrbitalBoundaryCommunication::SetDustFluidsBufferSameLevel(
               xl -= onx; xu -= onx;
             }
             for(int ndv=0 ; ndv<NDUSTVARS; ndv++) {
-#pragma omp simd
+//#pragma omp simd
               for (int k=xl; k<=xu; k++) {
                 df_uo(ndv,j,i,k) = buf[p++];
               }
