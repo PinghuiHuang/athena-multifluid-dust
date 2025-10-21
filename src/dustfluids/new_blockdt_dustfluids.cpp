@@ -48,12 +48,6 @@ Real DustFluids::NewAdvectionDt() {
   Real real_max = std::numeric_limits<Real>::max();
   Real min_dt_hyperbolic_df = real_max;
 
-  bool polar_inner = (pmb->pbval->block_bcs[BoundaryFace::inner_x2] == GetBoundaryFlag("polar"));
-  bool polar_outer = (pmb->pbval->block_bcs[BoundaryFace::outer_x2] == GetBoundaryFlag("polar"));
-
-  bool polar_wedge_inner = (pmb->pbval->block_bcs[BoundaryFace::inner_x2] == GetBoundaryFlag("polar_wedge"));
-  bool polar_wedge_outer = (pmb->pbval->block_bcs[BoundaryFace::outer_x2] == GetBoundaryFlag("polar_wedge"));
-
   FluidFormulation fluid_status = pmb->pmy_mesh->fluid_setup;
   for (int n=0; n<NDUSTFLUIDS; ++n) {
     int dust_id = n;
@@ -66,28 +60,6 @@ Real DustFluids::NewAdvectionDt() {
         pmb->pcoord->CenterWidth1(k, j, is, ie, dt1);
         pmb->pcoord->CenterWidth2(k, j, is, ie, dt2);
         pmb->pcoord->CenterWidth3(k, j, is, ie, dt3);
-
-        // polar averaging
-        if ((polar_inner || polar_wedge_inner)) {
-          if (j==js)
-#pragma omp simd
-            for (int i=is; i<=ie; ++i)
-              dt3(i) *= 4.0;
-          if (j==js+1)
-#pragma omp simd
-            for (int i=is; i<=ie; ++i)
-              dt3(i) *= 2.0;
-        }
-        if ((polar_outer || polar_wedge_outer)) {
-          if (j==je)
-#pragma omp simd
-            for (int i=is; i<=ie; ++i)
-              dt3(i) *= 4.0;
-          if (j==je-1)
-#pragma omp simd
-            for (int i=is; i<=ie; ++i)
-              dt3(i) *= 2.0;
-        }
 
 #pragma ivdep
         for (int i=is; i<=ie; ++i) {
@@ -131,8 +103,6 @@ Real DustFluids::NewAdvectionDt() {
       }
     }
   }
-
-  min_dt_hyperbolic_df *= pmb->pmy_mesh->cfl_number;
 
   return min_dt_hyperbolic_df;
 }

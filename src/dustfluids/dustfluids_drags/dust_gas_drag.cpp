@@ -64,13 +64,13 @@ DustGasDrag::DustGasDrag(DustFluids *pdf, ParameterInput *pin) :
   delta_mom2_src.NewAthenaArray(NDUSTGAS, nc1);
   delta_mom3_src.NewAthenaArray(NDUSTGAS, nc1);
 
-  mom1_prim.NewAthenaArray(NDUSTGAS, nc1);
-  mom2_prim.NewAthenaArray(NDUSTGAS, nc1);
-  mom3_prim.NewAthenaArray(NDUSTGAS, nc1);
+  mom1_w.NewAthenaArray(NDUSTGAS, nc1);
+  mom2_w.NewAthenaArray(NDUSTGAS, nc1);
+  mom3_w.NewAthenaArray(NDUSTGAS, nc1);
 
-  mom1_prim_n.NewAthenaArray(NDUSTGAS, nc1);
-  mom2_prim_n.NewAthenaArray(NDUSTGAS, nc1);
-  mom3_prim_n.NewAthenaArray(NDUSTGAS, nc1);
+  mom1_w_n.NewAthenaArray(NDUSTGAS, nc1);
+  mom2_w_n.NewAthenaArray(NDUSTGAS, nc1);
+  mom3_w_n.NewAthenaArray(NDUSTGAS, nc1);
 
   jacobi.NewAthenaArray(NDUSTGAS, NDUSTGAS, nc1);
   jacobi_n.NewAthenaArray(NDUSTGAS, NDUSTGAS, nc1);
@@ -123,21 +123,21 @@ DustGasDrag::DustGasDrag(DustFluids *pdf, ParameterInput *pin) :
 
 void DustGasDrag::DragIntegrate(const int stage, const Real dt,
       const AthenaArray<Real> &stopping_time,
-      const AthenaArray<Real> &w, const AthenaArray<Real> &prim_df,
-      AthenaArray<Real> &u, AthenaArray<Real> &cons_df) {
+      const AthenaArray<Real> &w, const AthenaArray<Real> &w_df,
+      AthenaArray<Real> &u, AthenaArray<Real> &u_df) {
 
   switch (method_id_) {
     case 1:
       if (integrator_ == "vl2") {
         if (DustFeedback_Flag)
-          VL2ImplicitFeedback(stage, dt, stopping_time, w, prim_df, u, cons_df);
+          VL2ImplicitFeedback(stage, dt, stopping_time, w, w_df, u, u_df);
         else
-          VL2ImplicitNoFeedback(stage, dt, stopping_time, w, prim_df, u, cons_df);
+          VL2ImplicitNoFeedback(stage, dt, stopping_time, w, w_df, u, u_df);
       } else if (integrator_ == "rk2") {
         if (DustFeedback_Flag)
-          RK2ImplicitFeedback(stage, dt, stopping_time, w, prim_df, u, cons_df);
+          RK2ImplicitFeedback(stage, dt, stopping_time, w, w_df, u, u_df);
         else
-          RK2ImplicitNoFeedback(stage, dt, stopping_time, w, prim_df, u, cons_df);
+          RK2ImplicitNoFeedback(stage, dt, stopping_time, w, w_df, u, u_df);
       } else {
         std::stringstream msg;
         msg << "The integrator combined with the 2nd-implicit methods must be \"VL2\" or \"RK2\"!" << std::endl;
@@ -148,19 +148,19 @@ void DustGasDrag::DragIntegrate(const int stage, const Real dt,
     case 2:
       if (integrator_ == "rk1") {
         if (DustFeedback_Flag)
-          BackwardEulerFeedback(stage, dt, stopping_time, w, prim_df, u, cons_df);
+          BackwardEulerFeedback(stage, dt, stopping_time, w, w_df, u, u_df);
         else
-          BackwardEulerNoFeedback(stage, dt, stopping_time, w, prim_df, u, cons_df);
+          BackwardEulerNoFeedback(stage, dt, stopping_time, w, w_df, u, u_df);
       } else if (integrator_ == "vl2") {
         if (DustFeedback_Flag)
-          VL2BackwardEulerFeedback(stage, dt, stopping_time, w, prim_df, u, cons_df);
+          VL2BackwardEulerFeedback(stage, dt, stopping_time, w, w_df, u, u_df);
         else
-          VL2BackwardEulerNoFeedback(stage, dt, stopping_time, w, prim_df, u, cons_df);
+          VL2BackwardEulerNoFeedback(stage, dt, stopping_time, w, w_df, u, u_df);
       } else if (integrator_ == "rk2") {
         if (DustFeedback_Flag)
-          RK2BackwardEulerFeedback(stage, dt, stopping_time, w, prim_df, u, cons_df);
+          RK2BackwardEulerFeedback(stage, dt, stopping_time, w, w_df, u, u_df);
         else
-          RK2BackwardEulerNoFeedback(stage, dt, stopping_time, w, prim_df, u, cons_df);
+          RK2BackwardEulerNoFeedback(stage, dt, stopping_time, w, w_df, u, u_df);
       } else {
         std::stringstream msg;
         msg << "The integrator combined with the 1st-implicit methods must be \"RK1\" or \"VL2\" or \"RK2\"!" << std::endl;
@@ -171,14 +171,14 @@ void DustGasDrag::DragIntegrate(const int stage, const Real dt,
     case 3:
       if (integrator_ == "vl2") {
         if (DustFeedback_Flag)
-          TRBDF2Feedback(stage, dt, stopping_time, w, prim_df, u, cons_df);
+          TRBDF2Feedback(stage, dt, stopping_time, w, w_df, u, u_df);
         else
-          TRBDF2NoFeedback(stage, dt, stopping_time, w, prim_df, u, cons_df);
+          TRBDF2NoFeedback(stage, dt, stopping_time, w, w_df, u, u_df);
       } else if (integrator_ == "rk2") {
         if (DustFeedback_Flag)
-          TrapezoidFeedback(stage, dt, stopping_time, w, prim_df, u, cons_df);
+          TrapezoidFeedback(stage, dt, stopping_time, w, w_df, u, u_df);
         else
-          TrapezoidNoFeedback(stage, dt, stopping_time, w, prim_df, u, cons_df);
+          TrapezoidNoFeedback(stage, dt, stopping_time, w, w_df, u, u_df);
       } else {
         std::stringstream msg;
         msg << "The integrator combined with the semi-implicit (2nd-order) methods must be \"VL2\" or \"RK2\"!" << std::endl;
@@ -189,25 +189,25 @@ void DustGasDrag::DragIntegrate(const int stage, const Real dt,
     case 4:
       if (integrator_ == "rk2") {
         if (DustFeedback_Flag)
-          RK2ExplicitFeedback(stage, dt, stopping_time, w, prim_df, u, cons_df);
+          RK2ExplicitFeedback(stage, dt, stopping_time, w, w_df, u, u_df);
         else
-          ExplicitNoFeedback(stage, dt, stopping_time, w, prim_df, u, cons_df);
+          ExplicitNoFeedback(stage, dt, stopping_time, w, w_df, u, u_df);
       } else if ( (integrator_ == "rk1") || (integrator_ == "vl2") ) {
         if (DustFeedback_Flag)
-          ExplicitFeedback(stage, dt, stopping_time, w, prim_df, u, cons_df);
+          ExplicitFeedback(stage, dt, stopping_time, w, w_df, u, u_df);
         else
-          ExplicitNoFeedback(stage, dt, stopping_time, w, prim_df, u, cons_df);
+          ExplicitNoFeedback(stage, dt, stopping_time, w, w_df, u, u_df);
       } else {
         if (DustFeedback_Flag) {
           if (!NON_BAROTROPIC_EOS)
-            ExplicitFeedback(stage, dt, stopping_time, w, prim_df, u, cons_df);
+            ExplicitFeedback(stage, dt, stopping_time, w, w_df, u, u_df);
           else {
             std::stringstream msg;
             msg << "For now, only \"VL2\", \"RK1\" and \"RK2\" can be used in non-isothermal cases when dust feedback is turned on!" << std::endl;
             ATHENA_ERROR(msg);
           }
         } else
-            ExplicitNoFeedback(stage, dt, stopping_time, w, prim_df, u, cons_df);
+            ExplicitNoFeedback(stage, dt, stopping_time, w, w_df, u, u_df);
       }
       break;
 

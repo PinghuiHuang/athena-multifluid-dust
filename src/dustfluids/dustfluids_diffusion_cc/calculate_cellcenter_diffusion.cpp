@@ -41,12 +41,13 @@ void DustFluidsCellCenterDiffusion::CalculateDiffusiveMomentum(const AthenaArray
   // i-direction
   const AthenaArray<Real> &x1flux = pdf->dfdif.dustfluids_diffusion_flux[X1DIR];
 
-  jl = js, ju = je, kl = ks, ku = ke;
+  // i-direction
+  il = is - 2, iu = ie + 2, jl = js, ju = je, kl = ks, ku = ke;
   if (f2) {
     if (!f3) // 2D
-      jl = js - 1, ju = je + 1, kl = ks, ku = ke;
+      jl = js - 2, ju = je + 2, kl = ks, ku = ke;
     else // 3D
-      jl = js - 1, ju = je + 1, kl = ks - 1, ku = ke + 1;
+      jl = js - 2, ju = je + 2, kl = ks - 2, ku = ke + 2;
   }
 
   for (int n=0; n<NDUSTFLUIDS; ++n) {
@@ -56,7 +57,7 @@ void DustFluidsCellCenterDiffusion::CalculateDiffusiveMomentum(const AthenaArray
     for (int k=kl; k<=ku; ++k) {
       for (int j=jl; j<=ju; ++j) {
 #pragma omp simd
-        for (int i=is; i<=ie; ++i) {
+        for (int i=il; i<=iu; ++i) {
           diff_mom_cc(v1_id, k, j, i) = 0.5*(x1flux(rho_id, k, j, i) + x1flux(rho_id, k, j, i+1));
         }
       }
@@ -64,11 +65,11 @@ void DustFluidsCellCenterDiffusion::CalculateDiffusiveMomentum(const AthenaArray
   }
 
   // j-direction
-  il = is, iu = ie, kl = ks, ku = ke;
+  il = is, iu = ie, jl = js - 2, ju = je + 2, kl = ks, ku = ke;
   if (!f3) // 2D
-    il = is - 1, iu = ie + 1, kl = ks, ku = ke;
+    il = is - 2, iu = ie + 2, kl = ks, ku = ke;
   else // 3D
-    il = is - 1, iu = ie + 1, kl = ks - 1, ku = ke + 1;
+    il = is - 2, iu = ie + 2, kl = ks - 2, ku = ke + 2;
 
   if (f2) { // 2D or 3D
     const AthenaArray<Real> &x2flux = pdf->dfdif.dustfluids_diffusion_flux[X2DIR];
@@ -77,7 +78,7 @@ void DustFluidsCellCenterDiffusion::CalculateDiffusiveMomentum(const AthenaArray
       int rho_id  = 4*dust_id;
       int v2_id   = rho_id + 2;
       for (int k=kl; k<=ku; ++k) {
-        for (int j=js; j<=je; ++j) {
+        for (int j=jl; j<=ju; ++j) {
 #pragma omp simd
           for (int i=il; i<=iu; ++i) {
             diff_mom_cc(v2_id, k, j, i) = 0.5*(x2flux(rho_id, k, j, i) + x2flux(rho_id, k, j+1, i));
@@ -88,11 +89,11 @@ void DustFluidsCellCenterDiffusion::CalculateDiffusiveMomentum(const AthenaArray
   }
 
   // k-direction
-  il = is, iu = ie, jl = js, ju = je;
+  il = is, iu = ie, jl = js, ju = je, kl = ks - 2, ku = ke + 2;
   if (f2) // 2D or 3D
-    il = is - 1, iu = ie + 1, jl = js - 1, ju = je + 1;
+    il = is - 2, iu = ie + 2, jl = js - 2, ju = je + 2;
   else // 1D
-    il = is - 1, iu = ie + 1;
+    il = is - 2, iu = ie + 2;
 
   if (f3) { // 3D
     const AthenaArray<Real> &x3flux = pdf->dfdif.dustfluids_diffusion_flux[X3DIR];
@@ -100,7 +101,7 @@ void DustFluidsCellCenterDiffusion::CalculateDiffusiveMomentum(const AthenaArray
       int dust_id = n;
       int rho_id  = 4*dust_id;
       int v3_id   = rho_id + 3;
-      for (int k=ks; k<=ke; ++k) {
+      for (int k=kl; k<=ku; ++k) {
         for (int j=jl; j<=ju; ++j) {
 #pragma omp simd
           for (int i=il; i<=iu; ++i) {

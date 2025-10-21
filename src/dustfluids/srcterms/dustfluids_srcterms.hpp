@@ -79,7 +79,6 @@ class DustFluidsSourceTerms {
   Real g1_, g2_, g3_;               // constant acc'n in each direction
   Real Omega_0_, qshear_;           // Orbital freq and shear rate in shearing box
   int  ShBoxCoord_;                 // ShearCoordinate type: 1=xy (default), 2=xz
-  AthenaArray<Real> dust_avg_;      // storage for polar averaging
   bool flag_point_mass_;            // flag for calling PointMass function
   int  flag_shearing_source_;       // 1=orbital advection, 2=shearing box, 3=rotating system
 };

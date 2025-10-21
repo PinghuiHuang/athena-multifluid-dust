@@ -65,7 +65,6 @@ DustFluidsSourceTerms::DustFluidsSourceTerms(DustFluids *pdf, ParameterInput *pi
       dustfluids_sourceterms_defined = true;
     }
   }
-
   g1_ = pin->GetOrAddReal("dust", "grav_acc1", 0.0);
   if (g1_ != 0.0) dustfluids_sourceterms_defined = true;
 
@@ -112,29 +111,15 @@ DustFluidsSourceTerms::DustFluidsSourceTerms(DustFluids *pdf, ParameterInput *pi
   UserSourceTerm = pmy_dustfluids_->pmy_block->pmy_mesh->UserSourceTerm_;
   if (UserSourceTerm != nullptr)
     dustfluids_sourceterms_defined = true;
-
-  // scratch array for polar averaging
-  if ((std::strcmp(COORDINATE_SYSTEM, "spherical_polar") == 0) && (pdf->pmy_block->block_size.nx3>1)){
-    int ncells1 = pdf->pmy_block->block_size.nx1 + 2*NGHOST;
-    int ncells3 = pdf->pmy_block->block_size.nx3 + 2*NGHOST;
-    dust_avg_.NewAthenaArray(NDUSTVARS, ncells3, ncells1);
-  }
 }
 
 //----------------------------------------------------------------------------------------
-//! \fn void DustFluidsSourceTerms::AddDustFluidsSourceTerms
 //! \brief Adds source terms to conserved variables
 
 void DustFluidsSourceTerms::AddDustFluidsSourceTerms(const Real time, const Real dt,
                      const AthenaArray<Real> *flux_df, const AthenaArray<Real> &prim_df,
                      AthenaArray<Real> &cons_df) {
   MeshBlock *pmb = pmy_dustfluids_->pmy_block;
-
-  bool polar_inner = (pmb->pbval->block_bcs[BoundaryFace::inner_x2] == GetBoundaryFlag("polar"));
-  bool polar_outer = (pmb->pbval->block_bcs[BoundaryFace::outer_x2] == GetBoundaryFlag("polar"));
-
-  bool polar_wedge_inner = (pmb->pbval->block_bcs[BoundaryFace::inner_x2] == GetBoundaryFlag("polar_wedge"));
-  bool polar_wedge_outer = (pmb->pbval->block_bcs[BoundaryFace::outer_x2] == GetBoundaryFlag("polar_wedge"));
 
   // accleration due to point mass (MUST BE AT ORIGIN)
   if (flag_point_mass_)
@@ -155,59 +140,6 @@ void DustFluidsSourceTerms::AddDustFluidsSourceTerms(const Real time, const Real
     ShearingBoxSourceTermsDustFluids(dt, flux_df, prim_df, cons_df);
   else if (flag_shearing_source_ == 3)
     RotatingSystemSourceTermsDustFluids(dt, flux_df, prim_df, cons_df);
-
-  // polar averaging
-  if ((std::strcmp(COORDINATE_SYSTEM, "spherical_polar") == 0) && (pmb->block_size.nx3 > 1)) {
-    if ((polar_inner || polar_wedge_inner)) {
-      PolarAveragingDustFluids(cons_df, pmb->js,   4);
-      PolarAveragingDustFluids(cons_df, pmb->js+1, 2);
-    }
-    if ((polar_outer || polar_wedge_outer)) {
-      PolarAveragingDustFluids(cons_df, pmb->je,   4);
-      PolarAveragingDustFluids(cons_df, pmb->je-1, 2);
-    }
-  }
-
-  return;
-}
-
-
-void DustFluidsSourceTerms::PolarAveragingDustFluids(AthenaArray<Real> &cons_df,
-                                                      int j, int nlayer) {
-
-  MeshBlock *pmb = pmy_dustfluids_->pmy_block;
-  int is = pmb->is; int ks = pmb->ks;
-  int ie = pmb->ie; int ke = pmb->ke;
-  Real fac = 1.0/SQR(nlayer);
-
-  for (int n=0; n<NDUSTVARS; ++n)
-    for (int k=ks; k<=ke; ++k)
-#pragma omp simd
-      for (int i=is; i<=ie; ++i)
-        dust_avg_(n, k, i) = 0.0;
-
-  for (int k=ks; k<=ke; ++k) {
-    for (int l=-nlayer+1; l<=nlayer-1; ++l) {
-      int myk = k+l;
-      Real wght = (nlayer-fabs(l))*fac;
-      myk = myk <= ke ? myk : myk-pmb->block_size.nx3;
-      myk = myk >= ks ? myk : myk+pmb->block_size.nx3;
-      for (int n=0; n<NDUSTVARS; ++n) {
-#pragma omp simd
-        for (int i=is; i<=ie; ++i)
-          dust_avg_(n, k, i) += cons_df(n, myk, j, i)*wght;
-      }
-    }
-  }
-
-  for (int n=0; n<NDUSTVARS; ++n) {
-    for (int k=ks; k<=ke; ++k) {
-#pragma omp simd
-      for (int i=is; i<=ie; ++i) {
-        cons_df(n, k, j, i) = dust_avg_(n, k, i);
-      }
-    }
-  }
 
   return;
 }

@@ -39,8 +39,8 @@ class DustGasDrag {
   // Select the drag integrators
   void DragIntegrate(const int stage, const Real dt,
     const AthenaArray<Real> &stopping_time,
-    const AthenaArray<Real> &w, const AthenaArray<Real> &prim_df,
-    AthenaArray<Real> &u, AthenaArray<Real> &cons_df);
+    const AthenaArray<Real> &w, const AthenaArray<Real> &w_df,
+    AthenaArray<Real> &u, AthenaArray<Real> &u_df);
 
   // Matrix Addition
   void Add(const AthenaArray<Real> &a_matrix, const Real b_num,
@@ -83,95 +83,95 @@ class DustGasDrag {
   // Explitcit Integartors, these are consistent with default integrators in athena++
   void ExplicitFeedback(const int stage, const Real dt,
       const AthenaArray<Real> &stopping_time,
-      const AthenaArray<Real> &w, const AthenaArray<Real> &prim_df,
-      AthenaArray<Real> &u, AthenaArray<Real> &cons_df);
+      const AthenaArray<Real> &w, const AthenaArray<Real> &w_df,
+      AthenaArray<Real> &u, AthenaArray<Real> &u_df);
 
   void ExplicitNoFeedback(const int stage, const Real dt,
       const AthenaArray<Real> &stopping_time,
-      const AthenaArray<Real> &w, const AthenaArray<Real> &prim_df,
-      const AthenaArray<Real> &u, AthenaArray<Real> &cons_df);
+      const AthenaArray<Real> &w, const AthenaArray<Real> &w_df,
+      const AthenaArray<Real> &u, AthenaArray<Real> &u_df);
 
   void RK2ExplicitFeedback(const int stage, const Real dt,
       const AthenaArray<Real> &stopping_time,
-      const AthenaArray<Real> &w, const AthenaArray<Real> &prim_df,
-      AthenaArray<Real> &u, AthenaArray<Real> &cons_df);
+      const AthenaArray<Real> &w, const AthenaArray<Real> &w_df,
+      AthenaArray<Real> &u, AthenaArray<Real> &u_df);
 
   // Semi-Implicit Integrators
   // Trapezoid Methods (Crank-Nicholson Methods), 2nd order time convergence
   void TrapezoidFeedback(const int stage, const Real dt,
       const AthenaArray<Real> &stopping_time,
-      const AthenaArray<Real> &w, const AthenaArray<Real> &prim_df,
-      AthenaArray<Real> &u, AthenaArray<Real> &cons_df);
+      const AthenaArray<Real> &w, const AthenaArray<Real> &w_df,
+      AthenaArray<Real> &u, AthenaArray<Real> &u_df);
 
   void TrapezoidNoFeedback(const int stage, const Real dt,
       const AthenaArray<Real> &stopping_time,
-      const AthenaArray<Real> &w, const AthenaArray<Real> &prim_df,
-      const AthenaArray<Real> &u, AthenaArray<Real> &cons_df);
+      const AthenaArray<Real> &w, const AthenaArray<Real> &w_df,
+      const AthenaArray<Real> &u, AthenaArray<Real> &u_df);
 
   // Trapezoid Backward Differentiation Formula 2 methods, 2nd order time convergence
   void TRBDF2Feedback(const int stage, const Real dt,
       const AthenaArray<Real> &stopping_time,
-      const AthenaArray<Real> &w, const AthenaArray<Real> &prim_df,
-      AthenaArray<Real> &u, AthenaArray<Real> &cons_df);
+      const AthenaArray<Real> &w, const AthenaArray<Real> &w_df,
+      AthenaArray<Real> &u, AthenaArray<Real> &u_df);
 
   void TRBDF2NoFeedback(const int stage, const Real dt,
       const AthenaArray<Real> &stopping_time,
-      const AthenaArray<Real> &w, const AthenaArray<Real> &prim_df,
-      const AthenaArray<Real> &u, AthenaArray<Real> &cons_df);
+      const AthenaArray<Real> &w, const AthenaArray<Real> &w_df,
+      const AthenaArray<Real> &u, AthenaArray<Real> &u_df);
 
   // Fully Implicit Integartors
   // Backward Euler methods (Backward Differentiation Formula 1, BDF1), 1st order time convergence
   void BackwardEulerFeedback(const int stage, const Real dt,
       const AthenaArray<Real> &stopping_time,
-      const AthenaArray<Real> &w, const AthenaArray<Real> &prim_df,
-      AthenaArray<Real> &u, AthenaArray<Real> &cons_df);
+      const AthenaArray<Real> &w, const AthenaArray<Real> &w_df,
+      AthenaArray<Real> &u, AthenaArray<Real> &u_df);
 
   void BackwardEulerNoFeedback(const int stage, const Real dt,
       const AthenaArray<Real> &stopping_time,
-      const AthenaArray<Real> &w, const AthenaArray<Real> &prim_df,
-      const AthenaArray<Real> &u, AthenaArray<Real> &cons_df);
+      const AthenaArray<Real> &w, const AthenaArray<Real> &w_df,
+      const AthenaArray<Real> &u, AthenaArray<Real> &u_df);
 
   void VL2BackwardEulerFeedback(const int stage, const Real dt,
       const AthenaArray<Real> &stopping_time,
-      const AthenaArray<Real> &w, const AthenaArray<Real> &prim_df,
-      AthenaArray<Real> &u, AthenaArray<Real> &cons_df);
+      const AthenaArray<Real> &w, const AthenaArray<Real> &w_df,
+      AthenaArray<Real> &u, AthenaArray<Real> &u_df);
 
   void VL2BackwardEulerNoFeedback(const int stage, const Real dt,
       const AthenaArray<Real> &stopping_time,
-      const AthenaArray<Real> &w, const AthenaArray<Real> &prim_df,
-      const AthenaArray<Real> &u, AthenaArray<Real> &cons_df);
+      const AthenaArray<Real> &w, const AthenaArray<Real> &w_df,
+      const AthenaArray<Real> &u, AthenaArray<Real> &u_df);
 
   void RK2BackwardEulerFeedback(const int stage, const Real dt,
       const AthenaArray<Real> &stopping_time,
-      const AthenaArray<Real> &w, const AthenaArray<Real> &prim_df,
-      AthenaArray<Real> &u, AthenaArray<Real> &cons_df);
+      const AthenaArray<Real> &w, const AthenaArray<Real> &w_df,
+      AthenaArray<Real> &u, AthenaArray<Real> &u_df);
 
   void RK2BackwardEulerNoFeedback(const int stage, const Real dt,
       const AthenaArray<Real> &stopping_time,
-      const AthenaArray<Real> &w, const AthenaArray<Real> &prim_df,
-      const AthenaArray<Real> &u, AthenaArray<Real> &cons_df);
+      const AthenaArray<Real> &w, const AthenaArray<Real> &w_df,
+      const AthenaArray<Real> &u, AthenaArray<Real> &u_df);
 
   // Van Leer 2 Implicit methods, 2nd order time convergence
   void VL2ImplicitFeedback(const int stage, const Real dt,
       const AthenaArray<Real> &stopping_time,
-      const AthenaArray<Real> &w, const AthenaArray<Real> &prim_df,
-      AthenaArray<Real> &u, AthenaArray<Real> &cons_df);
+      const AthenaArray<Real> &w, const AthenaArray<Real> &w_df,
+      AthenaArray<Real> &u, AthenaArray<Real> &u_df);
 
   void VL2ImplicitNoFeedback(const int stage, const Real dt,
       const AthenaArray<Real> &stopping_time,
-      const AthenaArray<Real> &w, const AthenaArray<Real> &prim_df,
-      const AthenaArray<Real> &u, AthenaArray<Real> &cons_df);
+      const AthenaArray<Real> &w, const AthenaArray<Real> &w_df,
+      const AthenaArray<Real> &u, AthenaArray<Real> &u_df);
 
   // Runge Kutta 2 Implicit methods, 2nd order time convergence
   void RK2ImplicitFeedback(const int stage, const Real dt,
       const AthenaArray<Real> &stopping_time,
-      const AthenaArray<Real> &w, const AthenaArray<Real> &prim_df,
-      AthenaArray<Real> &u, AthenaArray<Real> &cons_df);
+      const AthenaArray<Real> &w, const AthenaArray<Real> &w_df,
+      AthenaArray<Real> &u, AthenaArray<Real> &u_df);
 
   void RK2ImplicitNoFeedback(const int stage, const Real dt,
       const AthenaArray<Real> &stopping_time,
-      const AthenaArray<Real> &w, const AthenaArray<Real> &prim_df,
-      const AthenaArray<Real> &u, AthenaArray<Real> &cons_df);
+      const AthenaArray<Real> &w, const AthenaArray<Real> &w_df,
+      const AthenaArray<Real> &u, AthenaArray<Real> &u_df);
 
  private:
   std::string integrator_;        // Time Integrator
@@ -190,8 +190,8 @@ class DustGasDrag {
   AthenaArray<Real> delta_mom1_im_II, delta_mom2_im_II, delta_mom3_im_II;
   AthenaArray<Real> delta_mom1_src,   delta_mom2_src,   delta_mom3_src;
 
-  AthenaArray<Real> mom1_prim,   mom2_prim,   mom3_prim;
-  AthenaArray<Real> mom1_prim_n, mom2_prim_n, mom3_prim_n;
+  AthenaArray<Real> mom1_w,   mom2_w,   mom3_w;
+  AthenaArray<Real> mom1_w_n, mom2_w_n, mom3_w_n;
 
   AthenaArray<Real> idx_vector, lu_matrix;
   AthenaArray<Real> jacobi, jacobi_n, product, lambda, lambda_inv;

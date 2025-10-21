@@ -46,8 +46,8 @@ class DustFluids {
   // public data:
   // "conservative vars" = density, momenta of dust
   AthenaArray<Real> df_u, df_u1, df_u2; // time-integrator memory register #1
-  AthenaArray<Real> df_u0, df_u_fl_div;    // rkl2 STS memory registers;
-  AthenaArray<Real> df_u_af_src;              // conservatives after explicit source terms
+  AthenaArray<Real> df_u0, df_u_fl_div; // rkl2 STS memory registers;
+  AthenaArray<Real> df_u_af_src;        // conservatives after explicit source terms
 
   // "primitive vars" = density, velocities of dust
   AthenaArray<Real> df_w, df_w1, df_w_n;  // time-integrator memory register #3
@@ -94,7 +94,7 @@ class DustFluids {
           AthenaArray<Real> &cons_df_out, AthenaArray<Real> &cons_df_fl_div_out); // Add flux divergence
 
   void CalculateDustFluidsFluxes(AthenaArray<Real> &prim_df, const int order);    // Calculate fluxes of dust fluids
-  void CalculateDustFluidsFluxes_STS(); // Calculate fluxes of dust fluids in super time step
+  void CalculateFluxes_STS(); // Calculate fluxes of dust fluids in super time step
 
   // Riemann Solvers for dust fluids
   // HLLE solver without sound speed of dust

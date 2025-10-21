@@ -378,7 +378,7 @@ void DustFluids::CalculateDustFluidsFluxes(AthenaArray<Real> &prim_df, const int
 }
 
 
-void DustFluids::CalculateDustFluidsFluxes_STS() {
+void DustFluids::CalculateFluxes_STS() {
   AddDiffusionFluxes();
 }
 
