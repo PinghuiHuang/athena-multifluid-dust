@@ -94,7 +94,7 @@ void HydroBoundaryVariable::AddHydroShearForInit() {
 void HydroBoundaryVariable::ShearQuantities(AthenaArray<Real> &shear_cc_, bool upper) {
   MeshBlock *pmb = pmy_block_;
   Mesh *pmesh = pmb->pmy_mesh;
-  int &xgh = pbval_->xgh_;
+  const int &xgh = pbval_->xgh_;
   int jl = pmb->js - NGHOST;
   int ju = pmb->je + NGHOST+2*xgh+1;
   int kl = pmb->ks;

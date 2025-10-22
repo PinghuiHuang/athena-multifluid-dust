@@ -18,6 +18,18 @@
 #include "athena_arrays.hpp"
 #include "defs.hpp"
 
+//// See if we have FP16 support
+//#ifndef __INTEL_LLVM_COMPILER
+//#if defined(__fp16) || defined(__FLT16_MAX__) || defined(__ARM_FP16_FORMAT_IEEE)
+//#define fp16_t __fp16
+//#elif defined(_Float16)
+//#define fp16_t _Float16
+//#endif
+//#else
+//#define fp16_t_not_supported
+//#pragma message("fp16 not supported for icpx")
+//#endif // __INTEL_LLVM_COMPILER
+
 // primitive type alias that allows code to run with either floats or doubles
 #if SINGLE_PRECISION_ENABLED
 using Real = float;
@@ -79,6 +91,26 @@ struct LogicalLocation { // aggregate and POD type
 
 //! prototype for overloading the comparison operator (defined in meshblock_tree.cpp)
 bool operator==(const LogicalLocation &l1, const LogicalLocation &l2);
+
+
+//! \fn inline std::int64_t rotl(std::int64_t i, int s)
+//  \brief left bit rotation function for 64bit integers (unsafe if s > 64)
+
+inline std::int64_t rotl(std::int64_t i, int s) {
+  return (i << s) | (i >> (64 - s));
+}
+
+
+//! \struct LogicalLocationHash
+//  \brief Hash function object for LogicalLocation
+
+struct LogicalLocationHash {
+ public:
+  std::size_t operator()(const LogicalLocation &l) const {
+    return static_cast<std::size_t>(l.lx1^rotl(l.lx2,21)^rotl(l.lx3,42));
+  }
+};
+
 
 //----------------------------------------------------------------------------------------
 //! \struct RegionSize
@@ -209,7 +241,7 @@ using MGBoundaryFunc = void (*)(
     const MGCoordinates &coord);
 using ViscosityCoeffFunc = void (*)(
     HydroDiffusion *phdif, MeshBlock *pmb,
-    const AthenaArray<Real> &w, const AthenaArray<Real> &bc,
+    const  AthenaArray<Real> &w, const AthenaArray<Real> &bc,
     int is, int ie, int js, int je, int ks, int ke);
 using ConductionCoeffFunc = void (*)(
     HydroDiffusion *phdif, MeshBlock *pmb,

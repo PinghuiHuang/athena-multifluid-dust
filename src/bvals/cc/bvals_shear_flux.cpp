@@ -203,11 +203,9 @@ bool CellCenteredBoundaryVariable::ReceiveFluxShearingBoxBoundaryBuffers() {
 
 void CellCenteredBoundaryVariable::SetFluxShearingBoxBoundaryBuffers(int order) {
   MeshBlock *pmb = pmy_block_;
-  Mesh *pmesh = pmb->pmy_mesh;
   OrbitalAdvection *porb = pmb->porb;
   AthenaArray<Real> &pflux = pbval_->pflux_;
-  int &xgh = pbval_->xgh_;
-  //const int &xorder = pbval_->xorder_;
+  const int& xgh = pbval_->xgh_;
   const int &xorder = order;
   int is = pmb->is, ie = pmb->ie;
   int js = pmb->js, je = pmb->je;
