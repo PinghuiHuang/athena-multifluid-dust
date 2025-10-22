@@ -3682,5 +3682,3 @@ TaskStatus TimeIntegratorTaskList::DustGasDrag(MeshBlock *pmb, int stage) {
   }
   return TaskStatus::fail;
 }
-//TaskStatus TimeIntegratorTaskList::
-

@@ -1253,4 +1253,3 @@ TaskStatus SuperTimeStepTaskList::CheckRefinement_STS(MeshBlock *pmb, int stage)
     pmb->pmr->CheckRefinementCondition();
   return TaskStatus::success;
 }
-
