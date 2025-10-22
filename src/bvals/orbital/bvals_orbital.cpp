@@ -3864,4 +3864,3 @@ void OrbitalBoundaryCommunication::SetScalarBufferFromFiner(
   }
   return;
 }
-
