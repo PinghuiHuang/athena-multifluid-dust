@@ -74,7 +74,7 @@ void DustFluidsDiffusion::DustFluidsMomentumDiffusiveFlux(const AthenaArray<Real
           // F_rho_x1 = x1flux(rho_id,k,j,i) is the concentration diffusive flux in x1 direction
           (x1flux(rho_id, k, j, i) >= 0.0) ? di = 1 : di = 0;
 
-          x1flux(v1_id, k, j, i) += 1.0*x1flux(rho_id, k, j, i)*w_df(v1_id, k, j, i-di);
+          x1flux(v1_id, k, j, i) += 2.0*x1flux(rho_id, k, j, i)*w_df(v1_id, k, j, i-di);
           x1flux(v2_id, k, j, i) +=     x1flux(rho_id, k, j, i)*w_df(v2_id, k, j, i-di);
           x1flux(v3_id, k, j, i) +=     x1flux(rho_id, k, j, i)*w_df(v3_id, k, j, i-di);
 
@@ -85,7 +85,7 @@ void DustFluidsDiffusion::DustFluidsMomentumDiffusiveFlux(const AthenaArray<Real
           (product >= 0.0) ? same_sign = 1.0 : same_sign = 0.0;
           (product >= 0.0) ? di = 1 : di = 0;
 
-          x1flux(v1_id, k, j, i) += same_sign*w_df(v1_id, k, j, i)*x1flux(rho_id, k, j, i-di);
+          //x1flux(v1_id, k, j, i) += same_sign*w_df(v1_id, k, j, i)*x1flux(rho_id, k, j, i-di);
           //x1flux(v1_id, k, j, i) += same_sign*w_df(v1_id, k, j, i)*VanLeerLimiter(x1flux(rho_id, k,   j,   i-di+1), x1flux(rho_id, k, j, i-di));
           x1flux(v2_id, k, j, i) += same_sign*w_df(v1_id, k, j, i)*VanLeerLimiter(x2flux(rho_id, k,   j+1, i-di),   x2flux(rho_id, k, j, i-di));
           x1flux(v3_id, k, j, i) += same_sign*w_df(v1_id, k, j, i)*VanLeerLimiter(x3flux(rho_id, k+1, j,   i-di),   x3flux(rho_id, k, j, i-di));
@@ -120,7 +120,7 @@ void DustFluidsDiffusion::DustFluidsMomentumDiffusiveFlux(const AthenaArray<Real
             (x2flux(rho_id, k, j, i) >= 0.0) ? dj = 1 : dj = 0;
 
             x2flux(v1_id, k, j, i) +=     x2flux(rho_id, k, j, i)*w_df(v1_id, k, j-dj, i);
-            x2flux(v2_id, k, j, i) += 1.0*x2flux(rho_id, k, j, i)*w_df(v2_id, k, j-dj, i);
+            x2flux(v2_id, k, j, i) += 2.0*x2flux(rho_id, k, j, i)*w_df(v2_id, k, j-dj, i);
             x2flux(v3_id, k, j, i) +=     x2flux(rho_id, k, j, i)*w_df(v3_id, k, j-dj, i);
 
             // v_x2 * F_rho_i, The advection of the i-diffusive flux in x2 direction
@@ -131,7 +131,7 @@ void DustFluidsDiffusion::DustFluidsMomentumDiffusiveFlux(const AthenaArray<Real
             (product >= 0.0) ? dj = 1 : dj = 0;
 
             x2flux(v1_id, k, j, i) += same_sign*w_df(v2_id, k, j, i)*VanLeerLimiter(x1flux(rho_id, k,   j-dj,   i+1), x1flux(rho_id, k, j-dj, i));
-            x2flux(v2_id, k, j, i) += same_sign*w_df(v2_id, k, j, i)*x2flux(rho_id, k, j-dj, i);
+            //x2flux(v2_id, k, j, i) += same_sign*w_df(v2_id, k, j, i)*x2flux(rho_id, k, j-dj, i);
             //x2flux(v2_id, k, j, i) += same_sign*w_df(v2_id, k, j, i)*VanLeerLimiter(x2flux(rho_id, k,   j-dj+1, i),   x2flux(rho_id, k, j-dj, i));
             x2flux(v3_id, k, j, i) += same_sign*w_df(v2_id, k, j, i)*VanLeerLimiter(x3flux(rho_id, k+1, j-dj,   i),   x3flux(rho_id, k, j-dj, i));
           }
@@ -167,7 +167,7 @@ void DustFluidsDiffusion::DustFluidsMomentumDiffusiveFlux(const AthenaArray<Real
 
             x3flux(v1_id, k, j, i) +=     x3flux(rho_id, k, j, i)*w_df(v1_id, k-dk, j, i);
             x3flux(v2_id, k, j, i) +=     x3flux(rho_id, k, j, i)*w_df(v2_id, k-dk, j, i);
-            x3flux(v3_id, k, j, i) += 1.0*x3flux(rho_id, k, j, i)*w_df(v3_id, k-dk, j, i);
+            x3flux(v3_id, k, j, i) += 2.0*x3flux(rho_id, k, j, i)*w_df(v3_id, k-dk, j, i);
 
             // v_x3 * F_rho_i, The advection of the i-diffusive flux in x3 direction
             // Upwind Scheme depends on the sign of v_x3
@@ -178,7 +178,7 @@ void DustFluidsDiffusion::DustFluidsMomentumDiffusiveFlux(const AthenaArray<Real
 
             x3flux(v1_id, k, j, i) += same_sign*w_df(v3_id, k, j, i)*VanLeerLimiter(x1flux(rho_id, k-dk,   j,   i+1), x1flux(rho_id, k-dk, j, i));
             x3flux(v2_id, k, j, i) += same_sign*w_df(v3_id, k, j, i)*VanLeerLimiter(x2flux(rho_id, k-dk,   j+1, i),   x2flux(rho_id, k-dk, j, i));
-            x3flux(v3_id, k, j, i) += same_sign*w_df(v3_id, k, j, i)*x3flux(rho_id, k-dk, j, i);
+            //x3flux(v3_id, k, j, i) += same_sign*w_df(v3_id, k, j, i)*x3flux(rho_id, k-dk, j, i);
             //x3flux(v3_id, k, j, i) += same_sign*w_df(v3_id, k, j, i)*VanLeerLimiter(x3flux(rho_id, k-dk+1, j,   i),   x3flux(rho_id, k-dk, j, i));
           }
         }
