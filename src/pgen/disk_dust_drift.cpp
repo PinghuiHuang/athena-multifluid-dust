@@ -4,8 +4,8 @@
 // Licensed under the 3-clause BSD License, see LICENSE file for details
 //========================================================================================
 //! \file disk.cpp
-//  \brief Initializes stratified Keplerian accretion disk in both cylindrical and
-//  spherical polar coordinates.  Initial conditions are in vertical hydrostatic eqm.
+//  \brief Initializes stratified Keplerian accretion disk in both cylindrical
+//  coordinate. Initial conditions are in vertical hydrostatic eqm.
 
 // C headers
 
@@ -36,61 +36,40 @@
 #include "../parameter_input.hpp"
 
 namespace {
-void GetCylCoord(Coordinates *pco,Real &rad,Real &phi,Real &z,int i,int j,int k);
+void GetCylCoord(Coordinates *pco, Real &rad, Real &phi, Real &z, int i, int j, int k);
 Real DenProfileCyl(const Real rad, const Real phi, const Real z);
-Real PoverR(const Real rad,        const Real phi, const Real z);
-Real RadialD2G(const Real rad, const Real initial_dust2gas, const Real slope);
-void GasVelProfileCyl(const Real rad, const Real phi, const Real z,
-                   Real &v1, Real &v2, Real &v3);
-void DustVelProfileCyl(const Real rad, const Real phi, const Real z,
-                   Real &v1, Real &v2, Real &v3);
+Real Keplerian_velocity(const Real rad);
+Real CsSquare(const Real rad, const Real phi, const Real z);
 void GasVelProfileCyl_NSH(const Real SN, const Real QN, const Real Psi,
     const Real rad, const Real phi, const Real z, Real &v1, Real &v2, Real &v3);
 void DustVelProfileCyl_NSH(const Real Ts, const Real SN, const Real QN, const Real Psi,
     const Real rad, const Real phi, const Real z, Real &v1, Real &v2, Real &v3);
-void Keplerian_interpolate(const Real r_active, const Real r_ghost, const Real vphi_active,
-    Real &vphi_ghost);
-void Density_interpolate(const Real r_active, const Real r_ghost, const Real rho_active,
-    const Real slope, Real &rho_ghost);
-// problem parameters which are useful to make global to this file
-//
-Real Keplerian_velocity(const Real rad);
 Real Delta_gas_vr(const Real vk,   const Real SN, const Real QN, const Real Psi);
 Real Delta_gas_vphi(const Real vk, const Real SN, const Real QN, const Real Psi);
 Real Delta_dust_vr(const Real ts,   const Real vk, const Real d_vgr, const Real d_vgphi);
 Real Delta_dust_vphi(const Real ts, const Real vk, const Real d_vgr, const Real d_vgphi);
+void MyStoppingTime(MeshBlock *pmb, const Real time, const AthenaArray<Real> &prim,
+    const AthenaArray<Real> &prim_df, AthenaArray<Real> &stopping_time,
+    const int il, const int iu, const int jl, const int ju, const int kl, const int ku);
 
 // User Sources
 void MySource(MeshBlock *pmb, const Real time, const Real dt, const AthenaArray<Real> &prim,
     const AthenaArray<Real> &prim_df, const AthenaArray<Real> &prim_s, const AthenaArray<Real> &bcc,
     AthenaArray<Real> &cons, AthenaArray<Real> &cons_df, AthenaArray<Real> &cons_s);
-void InnerWavedamping(MeshBlock *pmb, const Real time, const Real dt, const AthenaArray<Real> &prim,
-    const AthenaArray<Real> &prim_df, const AthenaArray<Real> &prim_s, const AthenaArray<Real> &bcc,
-    AthenaArray<Real> &cons, AthenaArray<Real> &cons_df, AthenaArray<Real> &cons_s);
-void OuterWavedamping(MeshBlock *pmb, const Real time, const Real dt, const AthenaArray<Real> &prim,
-    const AthenaArray<Real> &prim_df, const AthenaArray<Real> &prim_s, const AthenaArray<Real> &bcc,
-    AthenaArray<Real> &cons, AthenaArray<Real> &cons_df, AthenaArray<Real> &cons_s);
-void LocalIsothermalEOS(MeshBlock *pmb, const Real time, const Real dt, const AthenaArray<Real> &prim,
-    const AthenaArray<Real> &prim_df, const AthenaArray<Real> &prim_s, const AthenaArray<Real> &bcc,
-    AthenaArray<Real> &cons, AthenaArray<Real> &cons_df, AthenaArray<Real> &cons_s);
-
-Real gm0, r0, rho_0, dslope, p0_over_r0, pslope, gamma_gas, dfloor, user_dt, iso_cs2_r0;
-Real tau_relax, rs, gmp, rad_planet, phi_planet, t0pot, omega_p, Bump_flag, A0, dwidth, rn, rand_amp, dust_dens_slope;
-Real x1min, x1max, tau_damping, damping_rate;
-Real radius_inner_damping, radius_outer_damping, inner_ratio_region, outer_ratio_region,
-     inner_width_damping, outer_width_damping;
-Real Omega0;
-
-Real SN_const(0.0), QN_const(0.0), Psi_const(0.0);
-
-Real initial_D2G[NDUSTFLUIDS], Stokes_number[NDUSTFLUIDS];
-Real eta_gas, beta_gas, ks_gas;
-bool Damping_Flag;
-
 // User defined time step
 Real MyTimeStep(MeshBlock *pmb);
-} // namespace
+Real Out4massBC(MeshBlock *pmb, int iout);
 
+void LocalIsothermalEOS(MeshBlock *pmb, int il, int iu, int jl,
+    int ju, int kl, int ku, AthenaArray<Real> &prim, AthenaArray<Real> &cons);
+void InnerWaveDampingGas(MeshBlock *pmb, const Real time, const Real dt, int il, int iu,
+    int jl, int ju, int kl, int ku, AthenaArray<Real> &prim, AthenaArray<Real> &cons);
+void OuterWaveDampingGas(MeshBlock *pmb, const Real time, const Real dt, int il, int iu,
+    int jl, int ju, int kl, int ku, AthenaArray<Real> &prim, AthenaArray<Real> &cons);
+void FixedDust(MeshBlock *pmb, int il, int iu, int jl, int ju, int kl, int ku,
+    AthenaArray<Real> &prim_df, AthenaArray<Real> &cons_df);
+void DustDensityPercentFloor(MeshBlock *pmb, int il, int iu, int jl, int ju, int kl, int ku,
+      AthenaArray<Real> &prim_df, AthenaArray<Real> &cons_df);
 // User-defined boundary conditions for disk simulations
 void InnerX1_NSH(MeshBlock *pmb, Coordinates *pco, AthenaArray<Real> &prim, AthenaArray<Real> &prim_df,
                   FaceField &b, Real time, Real dt,
@@ -98,6 +77,14 @@ void InnerX1_NSH(MeshBlock *pmb, Coordinates *pco, AthenaArray<Real> &prim, Athe
 void OuterX1_NSH(MeshBlock *pmb, Coordinates *pco, AthenaArray<Real> &prim, AthenaArray<Real> &prim_df,
                   FaceField &b, Real time, Real dt,
                   int il, int iu, int jl, int ju, int kl, int ku, int ngh);
+
+Real gm0, r0, rho_0, dslope, tslope, gamma_gas, dfloor, user_dt, iso_cs2_r0,
+x1min, x1max, damping_rate, radius_inner_damping, radius_outer_damping,
+inner_ratio_region, outer_ratio_region, inner_width_damping, outer_width_damping,
+Omega0, SN_const(0.0), QN_const(0.0), Psi_const(0.0),
+initial_D2G[NDUSTFLUIDS], Stokes_number[NDUSTFLUIDS], eta_gas, beta_gas, ks_gas;
+bool Damping_Flag, Isothermal_Flag;
+} // namespace
 
 //========================================================================================
 //! \fn void InitUserMeshData(ParameterInput *pin)
@@ -112,13 +99,12 @@ void Mesh::InitUserMeshData(ParameterInput *pin) {
   r0  = pin->GetOrAddReal("problem", "r0", 1.0);
 
   // Get parameters for initial density and velocity
-  rho_0           = pin->GetReal("problem",      "rho0");
-  dslope          = pin->GetOrAddReal("problem", "dslope", 0.0);
-  dust_dens_slope = pin->GetOrAddReal("problem", "dust_dens_slope", 0.0);
+  rho_0  = pin->GetReal("problem",      "rho0");
+  dslope = pin->GetOrAddReal("problem", "dslope", 0.0);
 
   // The parameters of the amplitude of random perturbation on the radial velocity
-  rand_amp     = pin->GetOrAddReal("problem", "random_vel_r_amp", 0.0);
-  Damping_Flag = pin->GetBoolean("problem",   "Damping_Flag");
+  Damping_Flag    = pin->GetOrAddBoolean("problem", "Damping_Flag", 1);
+  Isothermal_Flag = pin->GetOrAddBoolean("problem", "Isothermal_Flag", 1);
 
   // The parameters of damping zones
   x1min = pin->GetReal("mesh", "x1min");
@@ -136,23 +122,13 @@ void Mesh::InitUserMeshData(ParameterInput *pin) {
 
   // The normalized wave damping timescale, in unit of dynamical timescale.
   damping_rate = pin->GetOrAddReal("problem", "damping_rate", 1.0);
-
-  Omega0 = pin->GetOrAddReal("orbital_advection","Omega0",0.0);
-
-  // The parameters of one planet
-  tau_relax  = pin->GetOrAddReal("hydro",   "tau_relax",  0.01);
-  rad_planet = pin->GetOrAddReal("problem", "rad_planet", 1.0); // radial position of the planet
-  phi_planet = pin->GetOrAddReal("problem", "phi_planet", 0.0); // azimuthal position of the planet
-  t0pot      = pin->GetOrAddReal("problem", "t0pot",      0.0); // time to put in the planet
-  gmp        = pin->GetOrAddReal("problem", "GMp",        0.0); // GM of the planet
-  rs         = pin->GetOrAddReal("problem", "rs",         0.1); // softening length of the gravitational potential of planets
-  user_dt    = pin->GetOrAddReal("problem", "user_dt",    0.0);
-  omega_p    = sqrt(gm0/pow(rad_planet, 3));          // The Omega of planetary orbit
+  Omega0       = pin->GetOrAddReal("orbital_advection","Omega0",0.0);
+  user_dt      = pin->GetOrAddReal("problem", "user_dt",    0.0);
 
   // Dust to gas ratio && dust stopping time
   if (NDUSTFLUIDS > 0) {
     for (int n=0; n<NDUSTFLUIDS; n++) {
-      initial_D2G[n]   = pin->GetReal("dust", "initial_D2G_"      + std::to_string(n+1));
+      initial_D2G[n]   = pin->GetReal("dust", "initial_D2G_" + std::to_string(n+1));
       Stokes_number[n] = pin->GetReal("dust", "Stokes_number_" + std::to_string(n+1));
     }
   }
@@ -160,8 +136,8 @@ void Mesh::InitUserMeshData(ParameterInput *pin) {
   // Get parameters of initial pressure and cooling parameters
   if (NON_BAROTROPIC_EOS) {
     iso_cs2_r0 = SQR(pin->GetReal("hydro", "iso_sound_speed"));
-    pslope     = pin->GetReal("problem",   "pslope");
-    gamma_gas  = pin->GetReal("hydro",     "gamma");
+    tslope     = pin->GetReal("problem", "tslope");
+    gamma_gas  = pin->GetReal("hydro", "gamma");
   } else {
     iso_cs2_r0 = SQR(pin->GetReal("hydro", "iso_sound_speed"));
   }
@@ -169,7 +145,7 @@ void Mesh::InitUserMeshData(ParameterInput *pin) {
   Real float_min = std::numeric_limits<float>::min();
   dfloor         = pin->GetOrAddReal("hydro", "dfloor", (1024*(float_min)));
 
-  eta_gas  = 0.5*iso_cs2_r0*(pslope + dslope);
+  eta_gas  = 0.5*iso_cs2_r0*(tslope + dslope);
   beta_gas = std::sqrt(1.0 + 2.0*eta_gas);
   ks_gas   = 0.5 * beta_gas;
 
@@ -183,7 +159,7 @@ void Mesh::InitUserMeshData(ParameterInput *pin) {
   }
 
   // Enroll damping zone and local isothermal equation of state
-  EnrollUserExplicitSourceFunction(MySource);
+  //EnrollUserExplicitSourceFunction(MySource);
 
   // Enroll user-defined boundary condition
   if (mesh_bcs[BoundaryFace::inner_x1] == GetBoundaryFlag("user"))
@@ -195,6 +171,8 @@ void Mesh::InitUserMeshData(ParameterInput *pin) {
   // Enroll user-defined time step
   if (user_dt > 0.0)
     EnrollUserTimeStepFunction(MyTimeStep);
+
+  EnrollUserDustStoppingTime(MyStoppingTime);
 
   return;
 }
@@ -211,6 +189,9 @@ void MeshBlock::ProblemGenerator(ParameterInput *pin) {
   Real x1, x2, x3;
 
   OrbitalVelocityFunc &vK = porb->OrbitalVelocity;
+  Real orb_defined;
+  (porb->orbital_advection_defined) ? orb_defined = 1.0 : orb_defined = 0.0;
+
   Real igm1 = 1.0/(gamma_gas - 1.0);
   // Initialize density and momenta
   for (int k=ks; k<=ke; ++k) {
@@ -243,12 +224,8 @@ void MeshBlock::ProblemGenerator(ParameterInput *pin) {
         }
         Psi = 1.0/((SN + beta_gas)*(SN + 2.0*ks_gas) + SQR(QN));
 
-        //GasVelProfileCyl_NSH(SN, QN, Psi, rad, phi, z, g_v1, g_v2, g_v3);
         GasVelProfileCyl_NSH(SN_const, QN_const, Psi_const, rad, phi, z, g_v1, g_v2, g_v3);
-        if (porb->orbital_advection_defined && (std::strcmp(COORDINATE_SYSTEM, "cylindrical") == 0))
-          g_v2 -= vK(porb, x1, x2, x3);
-        if (porb->orbital_advection_defined && (std::strcmp(COORDINATE_SYSTEM, "spherical_polar") == 0))
-          g_v3 -= vK(porb, x1, x2, x3);
+        g_v2 -= orb_defined*vK(porb, x1, x2, x3);
 
         gas_m1 = gas_den * g_v1;
         gas_m2 = gas_den * g_v2;
@@ -256,7 +233,7 @@ void MeshBlock::ProblemGenerator(ParameterInput *pin) {
 
         if (NON_BAROTROPIC_EOS) {
           Real &gas_erg  = phydro->u(IEN, k, j, i);
-          Real p_over_r  = PoverR(rad, phi, z);
+          Real p_over_r  = CsSquare(rad, phi, z);
           gas_erg        = p_over_r * gas_den * igm1;
           gas_erg       += 0.5 * (SQR(gas_m1) + SQR(gas_m2) + SQR(gas_m3))/gas_den;
         }
@@ -273,12 +250,9 @@ void MeshBlock::ProblemGenerator(ParameterInput *pin) {
           Real &dust_m2  = pdustfluids->df_u(v2_id,  k, j, i);
           Real &dust_m3  = pdustfluids->df_u(v3_id,  k, j, i);
 
-          //DustVelProfileCyl_NSH(Stokes_number[dust_id], SN, QN, Psi, rad, phi, z, df_v1, df_v2, df_v3);
           DustVelProfileCyl_NSH(Stokes_number[dust_id], SN_const, QN_const, Psi_const, rad, phi, z, df_v1, df_v2, df_v3);
-          if (porb->orbital_advection_defined && (std::strcmp(COORDINATE_SYSTEM, "cylindrical") == 0))
-            df_v2 -= vK(porb, x1, x2, x3);
-          if (porb->orbital_advection_defined && (std::strcmp(COORDINATE_SYSTEM, "spherical_polar") == 0))
-            df_v3 -= vK(porb, x1, x2, x3);
+          df_v2 -= orb_defined*vK(porb, x1, x2, x3);
+
           dust_m1 = dust_den * df_v1;
           dust_m2 = dust_den * df_v2;
           dust_m3 = dust_den * df_v3;
@@ -291,19 +265,37 @@ void MeshBlock::ProblemGenerator(ParameterInput *pin) {
 }
 
 namespace {
+void MyStoppingTime(MeshBlock *pmb, const Real time, const AthenaArray<Real> &prim,
+    const AthenaArray<Real> &prim_df, AthenaArray<Real> &stopping_time,
+    const int il, const int iu, const int jl, const int ju, const int kl, const int ku) {
+
+  Real inv_sqrt_gm0 = 1.0/std::sqrt(gm0);
+
+  for (int n=0; n<NDUSTFLUIDS; ++n) {
+    int dust_id = n;
+    for (int k=kl; k<=ku; ++k) {
+      for (int j=jl; j<=ju; ++j) {
+#pragma omp simd
+        for (int i=il; i<=iu; ++i) {
+          Real &rad = pmb->pcoord->x1v(i);
+          Real inv_omega = std::sqrt(rad*rad*rad)*inv_sqrt_gm0;
+
+          Real &st_time = stopping_time(dust_id, k, j, i);
+          //Constant Stokes number in disk problems
+          st_time = Stokes_number[dust_id]*inv_omega;
+        }
+      }
+    }
+  }
+  return;
+}
+
+
 //----------------------------------------------------------------------------------------
 void MySource(MeshBlock *pmb, const Real time, const Real dt, const AthenaArray<Real> &prim,
     const AthenaArray<Real> &prim_df, const AthenaArray<Real> &prim_s, const AthenaArray<Real> &bcc,
     AthenaArray<Real> &cons, AthenaArray<Real> &cons_df, AthenaArray<Real> &cons_s)
 {
-  if (Damping_Flag) {
-    InnerWavedamping(pmb, time, dt, prim, prim_df, prim_s, bcc, cons, cons_df, cons_s);
-    OuterWavedamping(pmb, time, dt, prim, prim_df, prim_s, bcc, cons, cons_df, cons_s);
-  }
-
-  if (NON_BAROTROPIC_EOS)
-    LocalIsothermalEOS(pmb, time, dt, prim, prim_df, prim_s, bcc, cons, cons_df, cons_s);
-
   return;
 }
 
@@ -313,255 +305,20 @@ Real MyTimeStep(MeshBlock *pmb)
   return min_user_dt;
 }
 
-//----------------------------------------------------------------------------------------
-// Wavedamping function
-void InnerWavedamping(MeshBlock *pmb, const Real time, const Real dt, const AthenaArray<Real> &prim,
-    const AthenaArray<Real> &prim_df, const AthenaArray<Real> &prim_s, const AthenaArray<Real> &bcc,
-    AthenaArray<Real> &cons, AthenaArray<Real> &cons_df, AthenaArray<Real> &cons_s) {
 
-  int is = pmb->is; int ie = pmb->ie;
-  int js = pmb->js; int je = pmb->je;
-  int ks = pmb->ks; int ke = pmb->ke;
+void LocalIsothermalEOS(MeshBlock *pmb, int il, int iu, int jl,
+    int ju, int kl, int ku, AthenaArray<Real> &prim, AthenaArray<Real> &cons) {
 
-  Real igm1               = 1.0/(gamma_gas - 1.0);
-  Real inv_inner_damp     = 1.0/inner_width_damping;
-  OrbitalVelocityFunc &vK = pmb->porb->OrbitalVelocity;
+  Real mygam = pmb->peos->GetGamma();
+  Real igm1  = 1.0/(mygam - 1.0);
 
-  for (int k=ks; k<=ke; ++k) {
-    Real x3 = pmb->pcoord->x3v(k);
-    for (int j=js; j<=je; ++j) {
-      Real x2 = pmb->pcoord->x2v(j);
+  for (int k=kl; k<=ku; ++k) {
+    for (int j=jl; j<=ju; ++j) {
 #pragma omp simd
-      for (int i=is; i<=ie; ++i) {
-        Real x1 = pmb->pcoord->x1v(i);
-        Real rad, phi, z;
-        // compute initial conditions in cylindrical coordinates
-        GetCylCoord(pmb->pcoord, rad, phi, z, i, j, k);
-        Real Vel_K = Keplerian_velocity(rad);
-        if (rad <= radius_inner_damping) {
-          // See de Val-Borro et al. 2006 & 2007
-          Real omega_dyn       = std::sqrt(gm0/(rad*rad*rad));
-          //Real omega_dyn   = std::sqrt(gm0);
-          Real R_func          = SQR((rad - radius_inner_damping)*inv_inner_damp);
-          Real inv_damping_tau = damping_rate*omega_dyn;
-
-          // compute initial values in cylindrical coordinates
-          Real gas_rho_0 = DenProfileCyl_Gas(rad, phi, z);
-          Real gas_vel1_0, gas_vel2_0, gas_vel3_0;
-          GasVelProfileCyl_NSH(SN_const, QN_const, Psi_const, rad, phi, z, gas_vel1_0, gas_vel2_0, gas_vel3_0);
-          if (pmb->porb->orbital_advection_defined)
-            gas_vel2_0 -= Vel_K;
-
-          Real &gas_dens       = cons(IDN, k, j, i);
-          Real &gas_mom1       = cons(IM1, k, j, i);
-          Real &gas_mom2       = cons(IM2, k, j, i);
-          Real &gas_mom3       = cons(IM3, k, j, i);
-          Real inv_den_gas_ori = 1.0/gas_dens;
-
-          Real gas_vel1 = gas_mom1*inv_den_gas_ori;
-          Real gas_vel2 = gas_mom2*inv_den_gas_ori;
-          Real gas_vel3 = gas_mom3*inv_den_gas_ori;
-
-          Real delta_gas_dens = (gas_rho_0  - gas_dens)*R_func*inv_damping_tau*dt;
-          Real delta_gas_vel1 = (gas_vel1_0 - gas_vel1)*R_func*inv_damping_tau*dt;
-          Real delta_gas_vel2 = (gas_vel2_0 - gas_vel2)*R_func*inv_damping_tau*dt;
-          Real delta_gas_vel3 = (gas_vel3_0 - gas_vel3)*R_func*inv_damping_tau*dt;
-
-          gas_dens += delta_gas_dens;
-          gas_vel1 += delta_gas_vel1;
-          gas_vel2 += delta_gas_vel2;
-          gas_vel3 += delta_gas_vel3;
-
-          gas_mom1 = gas_dens*gas_vel1;
-          gas_mom2 = gas_dens*gas_vel2;
-          gas_mom3 = gas_dens*gas_vel3;
-
-          //if (NON_BAROTROPIC_EOS) {
-            //Real gas_erg_0  = PoverRho(rad, phi, z)*gas_rho_0;
-            //gas_erg_0      += 0.5*(SQR(gas_rho_0*gas_vel1_0) + SQR(gas_rho_0*gas_vel2_0) + SQR(gas_rho_0*gas_vel3_0))/gas_rho_0;
-            //Real &gas_erg   = cons(IEN, k, j, i);
-            //gas_erg         = gas_erg*alpha_ori + gas_erg_0*alpha_dam;
-          //}
-
-          if (NDUSTFLUIDS > 0) {
-            for (int n=0; n<NDUSTFLUIDS; ++n) {
-              int dust_id = n;
-              int rho_id  = 4*dust_id;
-              int v1_id   = rho_id + 1;
-              int v2_id   = rho_id + 2;
-              int v3_id   = rho_id + 3;
-
-              Real dust_rho_0 = DenProfileCyl_Dust(rad, phi, z, initial_D2G[dust_id], Hratio[dust_id]);
-              Real dust_vel1_0, dust_vel2_0, dust_vel3_0;
-              DustVelProfileCyl_NSH(Stokes_number[dust_id], SN_const, QN_const, Psi_const, rad, phi, z,
-                dust_vel1_0, dust_vel2_0, dust_vel3_0);
-              if (pmb->porb->orbital_advection_defined)
-                dust_vel2_0 -= Vel_K;
-
-              Real &dust_dens       = cons_df(rho_id, k, j, i);
-              Real &dust_mom1       = cons_df(v1_id,  k, j, i);
-              Real &dust_mom2       = cons_df(v2_id,  k, j, i);
-              Real &dust_mom3       = cons_df(v3_id,  k, j, i);
-              Real inv_den_dust_ori = 1.0/dust_dens;
-
-              Real dust_vel1 = dust_mom1*inv_den_dust_ori;
-              Real dust_vel2 = dust_mom2*inv_den_dust_ori;
-              Real dust_vel3 = dust_mom3*inv_den_dust_ori;
-
-              Real delta_dust_dens = (dust_rho_0  - dust_dens)*R_func*inv_damping_tau*dt;
-              Real delta_dust_vel1 = (dust_vel1_0 - dust_vel1)*R_func*inv_damping_tau*dt;
-              Real delta_dust_vel2 = (dust_vel2_0 - dust_vel2)*R_func*inv_damping_tau*dt;
-              Real delta_dust_vel3 = (dust_vel3_0 - dust_vel3)*R_func*inv_damping_tau*dt;
-
-              dust_dens += delta_dust_dens;
-              dust_vel1 += delta_dust_vel1;
-              dust_vel2 += delta_dust_vel2;
-              dust_vel3 += delta_dust_vel3;
-
-              dust_mom1 = dust_dens*dust_vel1;
-              dust_mom2 = dust_dens*dust_vel2;
-              dust_mom3 = dust_dens*dust_vel3;
-            }
-          }
-        }
-      }
-    }
-  }
-  return;
-}
-
-
-void OuterWavedamping(MeshBlock *pmb, const Real time, const Real dt, const AthenaArray<Real> &prim,
-    const AthenaArray<Real> &prim_df, const AthenaArray<Real> &prim_s, const AthenaArray<Real> &bcc,
-    AthenaArray<Real> &cons, AthenaArray<Real> &cons_df, AthenaArray<Real> &cons_s) {
-
-  int is = pmb->is; int ie = pmb->ie;
-  int js = pmb->js; int je = pmb->je;
-  int ks = pmb->ks; int ke = pmb->ke;
-
-  Real igm1               = 1.0/(gamma_gas - 1.0);
-  Real inv_outer_damp     = 1.0/outer_width_damping;
-  OrbitalVelocityFunc &vK = pmb->porb->OrbitalVelocity;
-
-  for (int k=ks; k<=ke; ++k) {
-    Real x3 = pmb->pcoord->x3v(k);
-    for (int j=js; j<=je; ++j) {
-    Real x2 = pmb->pcoord->x2v(j);
-#pragma omp simd
-      for (int i=is; i<=ie; ++i) {
-        Real x1 = pmb->pcoord->x1v(i);
+      for (int i=il; i<=iu; ++i) {
         Real rad, phi, z;
         GetCylCoord(pmb->pcoord, rad, phi, z, i, j, k);
-        Real Vel_K = Keplerian_velocity(rad);
-        if (rad >= radius_outer_damping) {
-          // See de Val-Borro et al. 2006 & 2007
-          Real omega_dyn       = std::sqrt(gm0/(rad*rad*rad));
-          //Real omega_dyn   = std::sqrt(gm0);
-          Real R_func          = SQR((rad - radius_outer_damping)*inv_outer_damp);
-          Real inv_damping_tau = damping_rate*omega_dyn;
-
-          // compute initial values in cylindrical coordinates
-          Real gas_rho_0 = DenProfileCyl_Gas(rad, phi, z);
-          Real gas_vel1_0, gas_vel2_0, gas_vel3_0;
-          GasVelProfileCyl_NSH(SN_const, QN_const, Psi_const, rad, phi, z, gas_vel1_0, gas_vel2_0, gas_vel3_0);
-          if (pmb->porb->orbital_advection_defined)
-            gas_vel2_0 -= Vel_K;
-
-          Real &gas_dens       = cons(IDN, k, j, i);
-          Real &gas_mom1       = cons(IM1, k, j, i);
-          Real &gas_mom2       = cons(IM2, k, j, i);
-          Real &gas_mom3       = cons(IM3, k, j, i);
-          Real inv_den_gas_ori = 1.0/gas_dens;
-
-          Real gas_vel1 = gas_mom1*inv_den_gas_ori;
-          Real gas_vel2 = gas_mom2*inv_den_gas_ori;
-          Real gas_vel3 = gas_mom3*inv_den_gas_ori;
-
-          Real delta_gas_dens = (gas_rho_0  - gas_dens)*R_func*inv_damping_tau*dt;
-          Real delta_gas_vel1 = (gas_vel1_0 - gas_vel1)*R_func*inv_damping_tau*dt;
-          Real delta_gas_vel2 = (gas_vel2_0 - gas_vel2)*R_func*inv_damping_tau*dt;
-          Real delta_gas_vel3 = (gas_vel3_0 - gas_vel3)*R_func*inv_damping_tau*dt;
-
-          gas_dens += delta_gas_dens;
-          gas_vel1 += delta_gas_vel1;
-          gas_vel2 += delta_gas_vel2;
-          gas_vel3 += delta_gas_vel3;
-
-          gas_mom1 = gas_dens*gas_vel1;
-          gas_mom2 = gas_dens*gas_vel2;
-          gas_mom3 = gas_dens*gas_vel3;
-
-          //if (NON_BAROTROPIC_EOS) {
-            //Real gas_erg_0  = PoverRho(rad, phi, z)*gas_rho_0;
-            //gas_erg_0      += 0.5*(SQR(gas_rho_0*gas_vel1_0) + SQR(gas_rho_0*gas_vel2_0) + SQR(gas_rho_0*gas_vel3_0))/gas_rho_0;
-            //Real &gas_erg   = cons(IEN, k, j, i);
-            //gas_erg         = gas_erg*alpha_ori + gas_erg_0*alpha_dam;
-          //}
-
-          if (NDUSTFLUIDS > 0) {
-            for (int n=0; n<NDUSTFLUIDS; ++n) {
-              int dust_id = n;
-              int rho_id  = 4*dust_id;
-              int v1_id   = rho_id + 1;
-              int v2_id   = rho_id + 2;
-              int v3_id   = rho_id + 3;
-
-              Real dust_rho_0 = DenProfileCyl_Dust(rad, phi, z, initial_D2G[dust_id], Hratio[dust_id]);
-              Real dust_vel1_0, dust_vel2_0, dust_vel3_0;
-              DustVelProfileCyl_NSH(Stokes_number[dust_id], SN_const, QN_const, Psi_const, rad, phi, z,
-                dust_vel1_0, dust_vel2_0, dust_vel3_0);
-              if (pmb->porb->orbital_advection_defined)
-                dust_vel2_0 -= Vel_K;
-
-              Real &dust_dens       = cons_df(rho_id, k, j, i);
-              Real &dust_mom1       = cons_df(v1_id,  k, j, i);
-              Real &dust_mom2       = cons_df(v2_id,  k, j, i);
-              Real &dust_mom3       = cons_df(v3_id,  k, j, i);
-              Real inv_den_dust_ori = 1.0/dust_dens;
-
-              Real dust_vel1 = dust_mom1*inv_den_dust_ori;
-              Real dust_vel2 = dust_mom2*inv_den_dust_ori;
-              Real dust_vel3 = dust_mom3*inv_den_dust_ori;
-
-              Real delta_dust_dens = (dust_rho_0  - dust_dens)*R_func*inv_damping_tau*dt;
-              Real delta_dust_vel1 = (dust_vel1_0 - dust_vel1)*R_func*inv_damping_tau*dt;
-              Real delta_dust_vel2 = (dust_vel2_0 - dust_vel2)*R_func*inv_damping_tau*dt;
-              Real delta_dust_vel3 = (dust_vel3_0 - dust_vel3)*R_func*inv_damping_tau*dt;
-
-              dust_dens += delta_dust_dens;
-              dust_vel1 += delta_dust_vel1;
-              dust_vel2 += delta_dust_vel2;
-              dust_vel3 += delta_dust_vel3;
-
-              dust_mom1 = dust_dens*dust_vel1;
-              dust_mom2 = dust_dens*dust_vel2;
-              dust_mom3 = dust_dens*dust_vel3;
-            }
-          }
-        }
-      }
-    }
-  }
-  return;
-}
-
-
-void LocalIsothermalEOS(MeshBlock *pmb, const Real time, const Real dt, const AthenaArray<Real> &prim,
-    const AthenaArray<Real> &prim_df, const AthenaArray<Real> &prim_s, const AthenaArray<Real> &bcc,
-    AthenaArray<Real> &cons, AthenaArray<Real> &cons_df, AthenaArray<Real> &cons_s) {
-  // Local Isothermal equation of state
-  int is = pmb->is; int ie = pmb->ie;
-  int js = pmb->js; int je = pmb->je;
-  int ks = pmb->ks; int ke = pmb->ke;
-
-  //Real inv_gamma = 1.0/gamma_gas;
-  Real igm1      = 1.0/(gamma_gas - 1.0);
-  for (int k=ks; k<=ke; ++k) { // include ghost zone
-    for (int j=js; j<=je; ++j) { // prim, cons
-#pragma omp simd
-      for (int i=is; i<=ie; ++i) {
-        Real rad, phi, z;
-        GetCylCoord(pmb->pcoord, rad, phi, z, i, j, k);
+        Real &gas_pres = prim(IPR, k, j, i);
 
         Real &gas_dens = cons(IDN, k, j, i);
         Real &gas_mom1 = cons(IM1, k, j, i);
@@ -569,9 +326,188 @@ void LocalIsothermalEOS(MeshBlock *pmb, const Real time, const Real dt, const At
         Real &gas_mom3 = cons(IM3, k, j, i);
         Real &gas_erg  = cons(IEN, k, j, i);
 
-        Real inv_gas_den = 1.0/gas_dens;
-        Real press       = PoverRho(rad, phi, z)*gas_dens;
-        gas_erg          = press*igm1 + 0.5*(SQR(gas_mom1) + SQR(gas_mom2) + SQR(gas_mom3))*inv_gas_den;
+        Real inv_gas_dens = 1.0/gas_dens;
+        gas_pres = CsSquare(rad, phi, z)*gas_dens;
+        gas_erg  = gas_pres*igm1 + 0.5*(SQR(gas_mom1) + SQR(gas_mom2) + SQR(gas_mom3))*inv_gas_dens;
+      }
+    }
+  }
+  return;
+}
+
+
+void InnerWaveDampingGas(MeshBlock *pmb, const Real time, const Real dt, int il, int iu,
+    int jl, int ju, int kl, int ku, AthenaArray<Real> &prim, AthenaArray<Real> &cons) {
+
+  Real mygam = pmb->peos->GetGamma();
+  Real igm1  = 1.0/(mygam - 1.0);
+
+  Real inv_inner_damp = 1.0/inner_width_damping;
+  Real inv_outer_damp = 1.0/outer_width_damping;
+
+  OrbitalVelocityFunc &vK = pmb->porb->OrbitalVelocity;
+  Real orb_defined;
+  (pmb->porb->orbital_advection_defined) ? orb_defined = 1.0 : orb_defined = 0.0;
+
+  int nc1 = pmb->ncells1;
+
+  AthenaArray<Real> omega_dyn, R_func, inv_damping_tau;
+  AthenaArray<Real> rad_arr, phi_arr, z_arr;
+  omega_dyn.NewAthenaArray(nc1);
+  R_func.NewAthenaArray(nc1);
+  inv_damping_tau.NewAthenaArray(nc1);
+  rad_arr.NewAthenaArray(nc1);
+  phi_arr.NewAthenaArray(nc1);
+  z_arr.NewAthenaArray(nc1);
+
+  for (int k=kl; k<=ku; ++k) {
+    Real x3 = pmb->pcoord->x3v(k);
+    for (int j=jl; j<=ju; ++j) {
+      Real x2 = pmb->pcoord->x2v(j);
+#pragma omp simd
+      for (int i=il; i<=iu; ++i) {
+        Real x1 = pmb->pcoord->x1v(i);
+        Real vel_gas_R, vel_gas_phi, vel_gas_z;
+        GetCylCoord(pmb->pcoord, rad_arr(i), phi_arr(i), z_arr(i), i, j, k);
+
+        if (rad_arr(i) <= radius_inner_damping) {
+          omega_dyn(i)       = std::sqrt(gm0/(rad_arr(i)*rad_arr(i)*rad_arr(i)));
+          R_func(i)          = SQR((rad_arr(i) - radius_inner_damping)*inv_inner_damp);
+          inv_damping_tau(i) = (damping_rate*omega_dyn(i));
+
+          Real gas_rho_init   = DenProfileCyl(rad_arr(i), phi_arr(i), z_arr(i));
+          Real cs_square_init = CsSquare(rad_arr(i), phi_arr(i), z_arr(i));
+
+          GasVelProfileCyl_NSH(SN_const, QN_const, Psi_const, rad_arr(i), phi_arr(i), z_arr(i), vel_gas_R, vel_gas_phi, vel_gas_z);
+          vel_gas_phi -= orb_defined*vK(pmb->porb, x1, x2, x3);
+
+          Real &gas_vel1_init = vel_gas_R;
+          Real &gas_vel2_init = vel_gas_phi;
+          Real &gas_vel3_init = vel_gas_z;
+          Real gas_pre_init   = cs_square_init*gas_rho_init;
+
+          Real &gas_rho  = prim(IDN, k, j, i);
+          Real &gas_vel1 = prim(IM1, k, j, i);
+          Real &gas_vel2 = prim(IM2, k, j, i);
+          Real &gas_vel3 = prim(IM3, k, j, i);
+          Real &gas_pre  = prim(IPR, k, j, i);
+
+          Real &gas_dens = cons(IDN, k, j, i);
+          Real &gas_mom1 = cons(IM1, k, j, i);
+          Real &gas_mom2 = cons(IM2, k, j, i);
+          Real &gas_mom3 = cons(IM3, k, j, i);
+          Real &gas_erg  = cons(IEN, k, j, i);
+
+          Real delta_gas_rho  = (gas_rho_init  - gas_rho )*R_func(i)*inv_damping_tau(i)*dt;
+          Real delta_gas_vel1 = (gas_vel1_init - gas_vel1)*R_func(i)*inv_damping_tau(i)*dt;
+          Real delta_gas_vel2 = (gas_vel2_init - gas_vel2)*R_func(i)*inv_damping_tau(i)*dt;
+          Real delta_gas_vel3 = (gas_vel3_init - gas_vel3)*R_func(i)*inv_damping_tau(i)*dt;
+          Real delta_gas_pre  = (gas_pre_init  - gas_pre )*R_func(i)*inv_damping_tau(i)*dt;
+
+          gas_rho  += delta_gas_rho;
+          gas_vel1 += delta_gas_vel1;
+          gas_vel2 += delta_gas_vel2;
+          gas_vel3 += delta_gas_vel3;
+          gas_pre  += delta_gas_pre;
+
+          gas_dens = gas_rho;
+          gas_mom1 = gas_dens*gas_vel1;
+          gas_mom2 = gas_dens*gas_vel2;
+          gas_mom3 = gas_dens*gas_vel3;
+
+          Real Ek = 0.5*(SQR(gas_mom1) + SQR(gas_mom2) + SQR(gas_mom3));
+          gas_erg = gas_pre*igm1 + Ek/gas_dens;
+        }
+      }
+    }
+  }
+  return;
+}
+
+
+void OuterWaveDampingGas(MeshBlock *pmb, const Real time, const Real dt, int il, int iu,
+    int jl, int ju, int kl, int ku, AthenaArray<Real> &prim, AthenaArray<Real> &cons) {
+
+  Real mygam = pmb->peos->GetGamma();
+  Real igm1  = 1.0/(mygam - 1.0);
+
+  Real inv_inner_damp = 1.0/inner_width_damping;
+  Real inv_outer_damp = 1.0/outer_width_damping;
+
+  OrbitalVelocityFunc &vK = pmb->porb->OrbitalVelocity;
+  Real orb_defined;
+  (pmb->porb->orbital_advection_defined) ? orb_defined = 1.0 : orb_defined = 0.0;
+
+  int nc1 = pmb->ncells1;
+
+  AthenaArray<Real> omega_dyn, R_func, inv_damping_tau;
+  AthenaArray<Real> rad_arr, phi_arr, z_arr;
+
+  omega_dyn.NewAthenaArray(nc1);
+  R_func.NewAthenaArray(nc1);
+  inv_damping_tau.NewAthenaArray(nc1);
+  rad_arr.NewAthenaArray(nc1);
+  phi_arr.NewAthenaArray(nc1);
+  z_arr.NewAthenaArray(nc1);
+
+  for (int k=kl; k<=ku; ++k) {
+    Real x3 = pmb->pcoord->x3v(k);
+    for (int j=jl; j<=ju; ++j) {
+      Real x2 = pmb->pcoord->x2v(j);
+#pragma omp simd
+      for (int i=il; i<=iu; ++i) {
+        Real x1 = pmb->pcoord->x1v(i);
+        Real vel_gas_R, vel_gas_phi, vel_gas_z;
+        GetCylCoord(pmb->pcoord, rad_arr(i), phi_arr(i), z_arr(i), i, j, k);
+
+        if (rad_arr(i) >= radius_outer_damping) {
+          omega_dyn(i)       = std::sqrt(gm0/(rad_arr(i)*rad_arr(i)*rad_arr(i)));
+          R_func(i)          = SQR((rad_arr(i) - radius_inner_damping)*inv_inner_damp);
+          inv_damping_tau(i) = (damping_rate*omega_dyn(i));
+
+          Real gas_rho_init   = DenProfileCyl(rad_arr(i), phi_arr(i), z_arr(i));
+          Real cs_square_init = CsSquare(rad_arr(i), phi_arr(i), z_arr(i));
+
+          GasVelProfileCyl_NSH(SN_const, QN_const, Psi_const, rad_arr(i), phi_arr(i), z_arr(i), vel_gas_R, vel_gas_phi, vel_gas_z);
+          vel_gas_phi -= orb_defined*vK(pmb->porb, x1, x2, x3);
+
+          Real &gas_vel1_init = vel_gas_R;
+          Real &gas_vel2_init = vel_gas_phi;
+          Real &gas_vel3_init = vel_gas_z;
+          Real gas_pre_init   = cs_square_init*gas_rho_init;
+
+          Real &gas_dens = cons(IDN, k, j, i);
+          Real &gas_mom1 = cons(IM1, k, j, i);
+          Real &gas_mom2 = cons(IM2, k, j, i);
+          Real &gas_mom3 = cons(IM3, k, j, i);
+          Real &gas_erg  = cons(IEN, k, j, i);
+
+          Real &gas_rho  = prim(IDN, k, j, i);
+          Real &gas_vel1 = prim(IM1, k, j, i);
+          Real &gas_vel2 = prim(IM2, k, j, i);
+          Real &gas_vel3 = prim(IM3, k, j, i);
+          Real &gas_pre  = prim(IPR, k, j, i);
+
+          Real delta_gas_rho  = (gas_rho_init  - gas_rho )*R_func(i)*inv_damping_tau(i)*dt;
+          Real delta_gas_vel1 = (gas_vel1_init - gas_vel1)*R_func(i)*inv_damping_tau(i)*dt;
+          Real delta_gas_vel2 = (gas_vel2_init - gas_vel2)*R_func(i)*inv_damping_tau(i)*dt;
+          Real delta_gas_vel3 = (gas_vel3_init - gas_vel3)*R_func(i)*inv_damping_tau(i)*dt;
+          Real delta_gas_pre  = (gas_pre_init  - gas_pre )*R_func(i)*inv_damping_tau(i)*dt;
+
+          gas_rho  += delta_gas_rho;
+          gas_vel1 += delta_gas_vel1;
+          gas_vel2 += delta_gas_vel2;
+          gas_vel3 += delta_gas_vel3;
+          gas_pre  += delta_gas_pre;
+
+          gas_dens = gas_rho;
+          gas_mom1 = gas_dens*gas_vel1;
+          gas_mom2 = gas_dens*gas_vel2;
+          gas_mom3 = gas_dens*gas_vel3;
+
+          Real Ek = 0.5*(SQR(gas_mom1) + SQR(gas_mom2) + SQR(gas_mom3));
+          gas_erg = gas_pre*igm1 + Ek/gas_dens;
+        }
       }
     }
   }
@@ -579,84 +515,32 @@ void LocalIsothermalEOS(MeshBlock *pmb, const Real time, const Real dt, const At
 }
 
 //----------------------------------------------------------------------------------------
-void GetCylCoord(Coordinates *pco,Real &rad,Real &phi,Real &z,int i,int j,int k) {
-  if (std::strcmp(COORDINATE_SYSTEM, "cylindrical") == 0) {
-    rad = pco->x1v(i);
-    phi = pco->x2v(j);
-    z   = pco->x3v(k);
-  } else if (std::strcmp(COORDINATE_SYSTEM, "spherical_polar") == 0) {
-    rad = std::abs(pco->x1v(i)*std::sin(pco->x2v(j)));
-    phi = pco->x3v(k);
-    z   = pco->x1v(i)*std::cos(pco->x2v(j));
-  }
+void GetCylCoord(Coordinates *pco, Real &rad, Real &phi, Real &z, int i, int j, int k) {
+  rad = pco->x1v(i);
+  phi = pco->x2v(j);
+  z   = pco->x3v(k);
   return;
 }
 
 //----------------------------------------------------------------------------------------
 //! \f  computes density in cylindrical coordinates
-Real RadialD2G(const Real rad, const Real initial_dust2gas, const Real slope)
-{
-  Real dust2gas = initial_dust2gas*std::pow(rad/r0, slope);
-  return dust2gas;
-}
-
-
 Real DenProfileCyl(const Real rad, const Real phi, const Real z) {
   Real rho_mid  = rho_0*std::pow(rad/r0, dslope); // 2D
   return std::max(rho_mid, dfloor);
 }
 
-
 //! \f  computes pressure/density in cylindrical coordinates
-Real PoverR(const Real rad, const Real phi, const Real z) {
+Real CsSquare(const Real rad, const Real phi, const Real z) {
   Real poverr;
-  poverr = iso_cs2_r0*std::pow(rad/r0, pslope);
+  poverr = iso_cs2_r0*std::pow(rad/r0, tslope);
   return poverr;
 }
 
 
 //----------------------------------------------------------------------------------------
 //! \f  computes rotational velocity in cylindrical coordinates
-void GasVelProfileCyl(const Real rad, const Real phi, const Real z,
-                   Real &v1, Real &v2, Real &v3) {
-  Real iso_cs2 = PoverR(rad, phi, z);
-  Real vel     = (dslope+pslope)*iso_cs2/(gm0/rad) + 1.0;
-  vel          = std::sqrt(gm0/rad)*std::sqrt(vel);
-
-  if (std::strcmp(COORDINATE_SYSTEM, "cylindrical") == 0) {
-    v1 = 0.0;
-    v2 = vel;
-    v3 = 0.0;
-  } else if (std::strcmp(COORDINATE_SYSTEM, "spherical_polar") == 0) {
-    v1 = 0.0;
-    v2 = 0.0;
-    v3 = vel;
-  }
-  return;
-}
-
-void DustVelProfileCyl(const Real rad, const Real phi, const Real z,
-                   Real &v1, Real &v2, Real &v3) {
-  Real vel = std::sqrt(gm0/rad);
-
-  if (std::strcmp(COORDINATE_SYSTEM, "cylindrical") == 0) {
-    v1 = 0.0;
-    v2 = vel;
-    v3 = 0.0;
-  } else if (std::strcmp(COORDINATE_SYSTEM, "spherical_polar") == 0) {
-    v1 = 0.0;
-    v2 = 0.0;
-    v3 = vel;
-  }
-  return;
-}
-
-//! \f  computes rotational velocity in cylindrical coordinates
 void GasVelProfileCyl_NSH(const Real SN, const Real QN, const Real Psi,
     const Real rad, const Real phi, const Real z, Real &v1, Real &v2, Real &v3) {
-  //Real iso_cs2        = PoverR(rad, phi, z);
-  //Real vel            = (dslope+pslope)*iso_cs2/(gm0/rad) + 1.0;
-  //vel                 = std::sqrt(gm0/rad)*std::sqrt(vel);
 
   Real vel_Keplerian  = Keplerian_velocity(rad);
   Real vel            = beta_gas*vel_Keplerian;
@@ -664,15 +548,9 @@ void GasVelProfileCyl_NSH(const Real SN, const Real QN, const Real Psi,
   Real delta_gas_vr   = Delta_gas_vr(vel_Keplerian,   SN, QN, Psi);
   Real delta_gas_vphi = Delta_gas_vphi(vel_Keplerian, SN, QN, Psi);
 
-  if (std::strcmp(COORDINATE_SYSTEM, "cylindrical") == 0) {
-    v1 = delta_gas_vr;
-    v2 = vel + delta_gas_vphi;
-    v3 = 0.0;
-  } else if (std::strcmp(COORDINATE_SYSTEM, "spherical_polar") == 0) {
-    v1 = delta_gas_vr;
-    v2 = 0.0;
-    v3 = vel + delta_gas_vphi;
-  }
+  v1 = delta_gas_vr;
+  v2 = vel + delta_gas_vphi;
+  v3 = 0.0;
   return;
 }
 
@@ -687,16 +565,14 @@ void DustVelProfileCyl_NSH(const Real ts, const Real SN, const Real QN, const Re
   Real delta_dust_vr   = Delta_dust_vr(ts,   vel_Keplerian, delta_gas_vr, delta_gas_vphi);
   Real delta_dust_vphi = Delta_dust_vphi(ts, vel_Keplerian, delta_gas_vr, delta_gas_vphi);
 
-  if (std::strcmp(COORDINATE_SYSTEM, "cylindrical") == 0) {
-    v1 = delta_dust_vr;
-    v2 = vel_Keplerian+delta_dust_vphi;
-    v3 = 0.0;
-  } else if (std::strcmp(COORDINATE_SYSTEM, "spherical_polar") == 0) {
-    v1 = delta_dust_vr;
-    v2 = 0.0;
-    v3 = vel_Keplerian+delta_dust_vphi;
-  }
+  v1 = delta_dust_vr;
+  v2 = vel_Keplerian + delta_dust_vphi;
+  v3 = 0.0;
   return;
+}
+
+Real Out4massBC(MeshBlock *pmb, int iout) {
+  return pmb->ruser_meshblock_data[0](iout);
 }
 
 Real Keplerian_velocity(const Real rad) {
@@ -729,41 +605,6 @@ Real Delta_dust_vphi(const Real ts, const Real vk, const Real d_vgr, const Real 
 }
 
 
-void Keplerian_interpolate(const Real r_active, const Real r_ghost,
-    const Real vphi_active, Real &vphi_ghost) {
-  vphi_ghost = vphi_active*std::sqrt(r_active/r_ghost);
-  return;
-}
-
-
-void Density_interpolate(const Real r_active, const Real r_ghost, const Real rho_active,
-    const Real slope, Real &rho_ghost) {
-  rho_ghost = rho_active * std::pow(r_ghost/r_active, slope);
-  return;
-}
-
-
-void Vr_interpolate_inner_nomatter(const Real r_active, const Real r_ghost, const Real sigma_active,
-    const Real sigma_ghost, const Real vr_active, Real &vr_ghost) {
-  //vr_ghost = vr_active <= 0.0 ? (sigma_active*r_active*vr_active)/(sigma_ghost*r_ghost) : 0.0;
-  vr_ghost = (sigma_active*r_active*vr_active)/(sigma_ghost*r_ghost);
-  return;
-}
-
-
-void Vr_interpolate_outer_nomatter(const Real r_active, const Real r_ghost, const Real sigma_active,
-    const Real sigma_ghost, const Real vr_active, Real &vr_ghost) {
-  //if (sigma_active < TINY_NUMBER)
-    //vr_ghost = vr_active >= 0.0 ? ((sigma_active+TINY_NUMBER)*r_active*vr_active)/(sigma_ghost*r_ghost) : 0.0;
-  //else
-    //vr_ghost = vr_active >= 0.0 ? (sigma_active*r_active*vr_active)/(sigma_ghost*r_ghost) : 0.0;
-  vr_ghost = (sigma_active*r_active*vr_active)/(sigma_ghost*r_ghost);
-  return;
-}
-
-} // namespace
-
-
 void InnerX1_NSH(MeshBlock *pmb, Coordinates *pco, AthenaArray<Real> &prim, AthenaArray<Real> &prim_df,
                   FaceField &b, Real time, Real dt,
                   int il, int iu, int jl, int ju, int kl, int ku, int ngh) {
@@ -773,6 +614,9 @@ void InnerX1_NSH(MeshBlock *pmb, Coordinates *pco, AthenaArray<Real> &prim, Athe
   Real x1, x2, x3;
 
   OrbitalVelocityFunc &vK = pmb->porb->OrbitalVelocity;
+  Real orb_defined;
+  (pmb->porb->orbital_advection_defined) ? orb_defined = 1.0 : orb_defined = 0.0;
+
   for (int k=kl; k<=ku; ++k) {
     x3 = pco->x3v(k);
     for (int j=jl; j<=ju; ++j) {
@@ -788,31 +632,15 @@ void InnerX1_NSH(MeshBlock *pmb, Coordinates *pco, AthenaArray<Real> &prim, Athe
         gas_rho_gh          = DenProfileCyl(rad_gh, phi_gh, z_gh);
         Real inv_gas_rho_gh = 1.0/gas_rho_gh;
 
-        Real SN(0.0), QN(0.0), Psi(0.0);
-        for (int n=0; n<NDUSTFLUIDS; n++) {
-          int dust_id       = n;
-          int rho_id        = 4*dust_id;
-          Real &dust_rho_gh = prim_df(rho_id, k, j, il-i);
-          dust_rho_gh       = initial_D2G[dust_id]*gas_rho_gh;
-
-          SN += (dust_rho_gh*inv_gas_rho_gh)/(1.0 + SQR(Stokes_number[n]));
-          QN += (dust_rho_gh*inv_gas_rho_gh*Stokes_number[n])/(1.0 + SQR(Stokes_number[n]));
-        }
-        Psi = 1.0/((SN + beta_gas)*(SN + 2.0*ks_gas) + SQR(QN));
-
-        //GasVelProfileCyl_NSH(SN, QN, Psi, rad_gh, phi_gh, z_gh, v1_gh, v2_gh, v3_gh);
         GasVelProfileCyl_NSH(SN_const, QN_const, Psi_const, rad_gh, phi_gh, z_gh, v1_gh, v2_gh, v3_gh);
-        if (pmb->porb->orbital_advection_defined && (std::strcmp(COORDINATE_SYSTEM, "cylindrical") == 0))
-          v2_gh -= vK(pmb->porb, x1, x2, x3);
-        if (pmb->porb->orbital_advection_defined && (std::strcmp(COORDINATE_SYSTEM, "spherical_polar") == 0))
-          v3_gh -= vK(pmb->porb, x1, x2, x3);
+        v2_gh -= orb_defined*vK(pmb->porb, x1, x2, x3);
         gas_v1_gh = v1_gh;
         gas_v2_gh = v2_gh;
         gas_v3_gh = v3_gh;
 
         if (NON_BAROTROPIC_EOS) {
           Real &gas_pre_gh = prim(IPR, k, j, il-i);
-          gas_pre_gh       = PoverR(rad_gh, phi_gh, z_gh)*gas_rho_gh;
+          gas_pre_gh       = CsSquare(rad_gh, phi_gh, z_gh)*gas_rho_gh;
         }
 
         if (NDUSTFLUIDS > 0) {
@@ -828,14 +656,9 @@ void InnerX1_NSH(MeshBlock *pmb, Coordinates *pco, AthenaArray<Real> &prim, Athe
             Real &dust_v2_gh  = prim_df(v2_id,  k, j, il-i);
             Real &dust_v3_gh  = prim_df(v3_id,  k, j, il-i);
 
-            //DustVelProfileCyl_NSH(Stokes_number[dust_id], SN, QN, Psi, rad_gh, phi_gh, z_gh,
-                //df_v1_gh, df_v2_gh, df_v3_gh);
             DustVelProfileCyl_NSH(Stokes_number[dust_id], SN_const, QN_const, Psi_const, rad_gh, phi_gh, z_gh,
                 df_v1_gh, df_v2_gh, df_v3_gh);
-            if (pmb->porb->orbital_advection_defined && (std::strcmp(COORDINATE_SYSTEM, "cylindrical") == 0))
-              df_v2_gh -= vK(pmb->porb, x1, x2, x3);
-            if (pmb->porb->orbital_advection_defined && (std::strcmp(COORDINATE_SYSTEM, "spherical_polar") == 0))
-              df_v3_gh -= vK(pmb->porb, x1, x2, x3);
+            df_v2_gh -= orb_defined*vK(pmb->porb, x1, x2, x3);
 
             dust_v1_gh = df_v1_gh;
             dust_v2_gh = df_v2_gh;
@@ -859,6 +682,9 @@ void OuterX1_NSH(MeshBlock *pmb, Coordinates *pco, AthenaArray<Real> &prim, Athe
   Real x1, x2, x3;
 
   OrbitalVelocityFunc &vK = pmb->porb->OrbitalVelocity;
+  Real orb_defined;
+  (pmb->porb->orbital_advection_defined) ? orb_defined = 1.0 : orb_defined = 0.0;
+
   for (int k=kl; k<=ku; ++k) {
     x3 = pco->x3v(k);
     for (int j=jl; j<=ju; ++j) {
@@ -874,31 +700,16 @@ void OuterX1_NSH(MeshBlock *pmb, Coordinates *pco, AthenaArray<Real> &prim, Athe
         gas_rho_gh          = DenProfileCyl(rad_gh, phi_gh, z_gh);
         Real inv_gas_rho_gh = 1.0/gas_rho_gh;
 
-        Real SN(0.0), QN(0.0), Psi(0.0);
-        for (int n=0; n<NDUSTFLUIDS; n++) {
-          int dust_id       = n;
-          int rho_id        = 4*dust_id;
-          Real &dust_rho_gh = prim_df(rho_id, k, j, iu+i);
-          dust_rho_gh       = initial_D2G[dust_id]*gas_rho_gh;
-
-          SN += (dust_rho_gh*inv_gas_rho_gh)/(1.0 + SQR(Stokes_number[n]));
-          QN += (dust_rho_gh*inv_gas_rho_gh*Stokes_number[n])/(1.0 + SQR(Stokes_number[n]));
-        }
-        Psi = 1.0/((SN + beta_gas)*(SN + 2.0*ks_gas) + SQR(QN));
-
-        //GasVelProfileCyl_NSH(SN, QN, Psi, rad_gh, phi_gh, z_gh, v1_gh, v2_gh, v3_gh);
         GasVelProfileCyl_NSH(SN_const, QN_const, Psi_const, rad_gh, phi_gh, z_gh, v1_gh, v2_gh, v3_gh);
-        if (pmb->porb->orbital_advection_defined && (std::strcmp(COORDINATE_SYSTEM, "cylindrical") == 0))
-          v2_gh -= vK(pmb->porb, x1, x2, x3);
-        if (pmb->porb->orbital_advection_defined && (std::strcmp(COORDINATE_SYSTEM, "spherical_polar") == 0))
-          v3_gh -= vK(pmb->porb, x1, x2, x3);
+        v2_gh -= orb_defined*vK(pmb->porb, x1, x2, x3);
+
         gas_v1_gh = v1_gh;
         gas_v2_gh = v2_gh;
         gas_v3_gh = v3_gh;
 
         if (NON_BAROTROPIC_EOS) {
           Real &gas_pre_gh = prim(IPR, k, j, iu+i);
-          gas_pre_gh       = PoverR(rad_gh, phi_gh, z_gh)*gas_rho_gh;
+          gas_pre_gh       = CsSquare(rad_gh, phi_gh, z_gh)*gas_rho_gh;
         }
 
         if (NDUSTFLUIDS > 0) {
@@ -914,23 +725,43 @@ void OuterX1_NSH(MeshBlock *pmb, Coordinates *pco, AthenaArray<Real> &prim, Athe
             Real &dust_v2_gh  = prim_df(v2_id,  k, j, iu+i);
             Real &dust_v3_gh  = prim_df(v3_id,  k, j, iu+i);
 
-            //DustVelProfileCyl_NSH(Stokes_number[dust_id], SN, QN, Psi, rad_gh, phi_gh, z_gh,
-                //df_v1_gh, df_v2_gh, df_v3_gh);
             DustVelProfileCyl_NSH(Stokes_number[dust_id], SN_const, QN_const, Psi_const, rad_gh, phi_gh, z_gh,
                 df_v1_gh, df_v2_gh, df_v3_gh);
-            if (pmb->porb->orbital_advection_defined && (std::strcmp(COORDINATE_SYSTEM, "cylindrical") == 0))
-              df_v2_gh -= vK(pmb->porb, x1, x2, x3);
-            if (pmb->porb->orbital_advection_defined && (std::strcmp(COORDINATE_SYSTEM, "spherical_polar") == 0))
-              df_v3_gh -= vK(pmb->porb, x1, x2, x3);
+            df_v2_gh -= orb_defined*vK(pmb->porb, x1, x2, x3);
 
             dust_v1_gh = df_v1_gh;
             dust_v2_gh = df_v2_gh;
             dust_v3_gh = df_v3_gh;
           }
         }
-
       }
     }
   }
+  return;
+}
+} // namespace
+
+
+void MeshBlock::UserWorkInLoop() {
+
+  Real &time = pmy_mesh->time;
+  Real &dt   = pmy_mesh->dt;
+  Real mygam = peos->GetGamma();
+  Real igm1  = 1.0/(mygam - 1.0);
+  int dk     = NGHOST;
+  if (block_size.nx3 == 1) dk = 0;
+
+  int kl = ks - dk;     int ku = ke + dk;
+  int jl = js - NGHOST; int ju = je + NGHOST;
+  int il = is - NGHOST; int iu = ie + NGHOST;
+
+  if (Damping_Flag) {
+    InnerWaveDampingGas(this, time, dt, il, iu, jl, ju, kl, ku, phydro->w, phydro->u);
+    OuterWaveDampingGas(this, time, dt, il, iu, jl, ju, kl, ku, phydro->w, phydro->u);
+  }
+
+  if (Isothermal_Flag)
+    LocalIsothermalEOS(this, il, iu, jl, ju, kl, ku, phydro->w, phydro->u);
+
   return;
 }
