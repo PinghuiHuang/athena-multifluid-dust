@@ -4,7 +4,7 @@
 // Licensed under the 3-clause BSD License, see LICENSE file for details
 //========================================================================================
 //! \file disk.cpp
-//  \brief Initializes stratified Keplerian accretion disk in both cylindrical
+//  \brief Initializes stratified Keplerian accretion disk in cylindrical
 //  coordinate. Initial conditions are in vertical hydrostatic eqm.
 
 // C headers
@@ -183,6 +183,12 @@ void Mesh::InitUserMeshData(ParameterInput *pin) {
 //========================================================================================
 
 void MeshBlock::ProblemGenerator(ParameterInput *pin) {
+  if (std::strcmp(COORDINATE_SYSTEM, "cylindrical") != 0) {
+    std::stringstream msg;
+    msg << "This problem file must be setup in the cylindrical coordinate!" << std::endl;
+    ATHENA_ERROR(msg);
+  }
+
   Real rad(0.0),   phi(0.0),   z(0.0);
   Real g_v1(0.0),  g_v2(0.0),  g_v3(0.0);
   Real df_v1(0.0), df_v2(0.0), df_v3(0.0);
