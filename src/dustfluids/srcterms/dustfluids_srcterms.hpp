@@ -68,8 +68,6 @@ class DustFluidsSourceTerms {
   void EnrollSrcTermFunction(SrcTermFunc my_func);
   SrcTermFunc UserSourceTerm;
 
-  void PolarAveragingDustFluids(AthenaArray<Real> &cons_df, int j, int nlayer);
-
  private:
   friend class DustFluids;
   friend class DustFluidsDiffusion;
