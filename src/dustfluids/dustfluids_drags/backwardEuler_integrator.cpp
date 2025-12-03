@@ -873,10 +873,10 @@ void DustGasDrag::RK2BackwardEulerFeedback(const int stage,
   bool Drag_WorkDissipation = (NON_BAROTROPIC_EOS && Dissipation_Flag);
 
   const AthenaArray<Real> &w_n             = pmy_hydro_->w_n;
-  const AthenaArray<Real> &w_df_n       = pmy_dustfluids_->df_w_n;
+  const AthenaArray<Real> &w_df_n          = pmy_dustfluids_->df_w_n;
   const AthenaArray<Real> &stopping_time_n = pmy_dustfluids_->stopping_time_array_n;
   const AthenaArray<Real> &u_af_src        = pmy_hydro_->u_af_src;
-  const AthenaArray<Real> &u_df_af_src  = pmy_dustfluids_->df_u_af_src;
+  const AthenaArray<Real> &u_df_af_src     = pmy_dustfluids_->df_u_af_src;
 
   AthenaArray<Real> &Stage_I_delta_mom1 = pmy_dustfluids_->Stage_I_delta_mom1;
   AthenaArray<Real> &Stage_I_delta_mom2 = pmy_dustfluids_->Stage_I_delta_mom2;
